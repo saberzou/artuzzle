@@ -656,10 +656,13 @@ function showWin() {
 }
 
 function closeWin() {
-  gsap.to('#win-overlay', {
+  const overlay = document.getElementById('win-overlay');
+  overlay.style.pointerEvents = 'none'; // prevent double-tap issues
+  gsap.to(overlay, {
     opacity: 0, duration: 0.25, ease: EASE,
     onComplete: () => {
-      document.getElementById('win-overlay').classList.remove('active');
+      overlay.classList.remove('active');
+      overlay.style.pointerEvents = '';
       goTo('levels');
     }
   });
