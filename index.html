@@ -145,6 +145,13 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
   opacity:0.92;
 }
 .strip canvas{display:block;width:100%}
+.strip-halves{display:flex;width:100%}
+.strip-halves canvas{display:block;width:50%;flex-shrink:0}
+.strip-halves.swapped{flex-direction:row-reverse}
+.strip-halves .strip-divider-v{
+  position:absolute;left:50%;top:0;bottom:0;width:1px;
+  background:rgba(255,255,255,0.25);pointer-events:none;z-index:1;
+}
 .strip-number{
   position:absolute;left:var(--space-sm);top:50%;transform:translateY(-50%);
   font-size:0.6rem;color:rgba(255,255,255,0.5);
@@ -450,9 +457,18 @@ function buildPuzzle(img) {
   container.innerHTML = '';
   strips = [];
   const w = img.naturalWidth, h = img.naturalHeight, stripH = h / NUM_STRIPS;
+  const hardMode = solved.has(currentPainting.index); // replay = vertical cut added
 
   // Create shuffled order (correctIndex tracks which strip this really is)
   const order = shuffleArray(Array.from({ length: NUM_STRIPS }, (_, i) => i));
+
+  // In hard mode, pick 3-5 strips to have their halves swapped
+  let swappedSet = new Set();
+  if (hardMode) {
+    const count = 3 + Math.floor(Math.random() * 3);
+    const candidates = shuffleArray(Array.from({ length: NUM_STRIPS }, (_, i) => i));
+    for (let k = 0; k < count; k++) swappedSet.add(candidates[k]);
+  }
 
   for (let i = 0; i < NUM_STRIPS; i++) {
     const srcIndex = order[i]; // which row of the image this strip shows
@@ -460,14 +476,63 @@ function buildPuzzle(img) {
     strip.className = 'strip';
     strip.dataset.correctIndex = srcIndex;
 
-    const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = Math.ceil(stripH);
-    canvas.getContext('2d').drawImage(
-      img, 0, Math.floor(srcIndex * stripH), w, Math.ceil(stripH),
-      0, 0, w, Math.ceil(stripH)
-    );
-    strip.appendChild(canvas);
+    if (hardMode) {
+      // Split into left and right halves
+      const halfW = Math.ceil(w / 2);
+      const halvesDiv = document.createElement('div');
+      halvesDiv.className = 'strip-halves' + (swappedSet.has(i) ? ' swapped' : '');
+      halvesDiv.dataset.swapped = swappedSet.has(i) ? '1' : '0';
+
+      const leftCanvas = document.createElement('canvas');
+      leftCanvas.width = halfW;
+      leftCanvas.height = Math.ceil(stripH);
+      leftCanvas.getContext('2d').drawImage(
+        img, 0, Math.floor(srcIndex * stripH), halfW, Math.ceil(stripH),
+        0, 0, halfW, Math.ceil(stripH)
+      );
+
+      const rightCanvas = document.createElement('canvas');
+      rightCanvas.width = w - halfW;
+      rightCanvas.height = Math.ceil(stripH);
+      rightCanvas.getContext('2d').drawImage(
+        img, halfW, Math.floor(srcIndex * stripH), w - halfW, Math.ceil(stripH),
+        0, 0, w - halfW, Math.ceil(stripH)
+      );
+
+      halvesDiv.appendChild(leftCanvas);
+      halvesDiv.appendChild(rightCanvas);
+
+      // Vertical divider line
+      const divV = document.createElement('div');
+      divV.className = 'strip-divider-v';
+      halvesDiv.appendChild(divV);
+
+      // Tap to toggle halves
+      halvesDiv.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isSwapped = halvesDiv.dataset.swapped === '1';
+        halvesDiv.dataset.swapped = isSwapped ? '0' : '1';
+        halvesDiv.classList.toggle('swapped');
+        moves++;
+        document.getElementById('move-count').textContent = moves;
+        // Quick flip animation
+        gsap.fromTo(halvesDiv, { scaleX: 0.96 }, { scaleX: 1, duration: 0.25, ease: EASE });
+        setTimeout(checkWin, 300);
+      });
+
+      strip.appendChild(halvesDiv);
+    } else {
+      // Simple mode: full-width canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = Math.ceil(stripH);
+      canvas.getContext('2d').drawImage(
+        img, 0, Math.floor(srcIndex * stripH), w, Math.ceil(stripH),
+        0, 0, w, Math.ceil(stripH)
+      );
+      strip.appendChild(canvas);
+    }
+
     strips.push(strip);
     container.appendChild(strip);
   }
@@ -559,8 +624,14 @@ function buildPuzzle(img) {
 
 function checkWin() {
   const allStrips = [...document.getElementById('puzzle-container').querySelectorAll('.strip')];
-  const isCorrect = allStrips.every((s, i) => parseInt(s.dataset.correctIndex) === i);
-  if (isCorrect) setTimeout(showWin, 300);
+  const orderCorrect = allStrips.every((s, i) => parseInt(s.dataset.correctIndex) === i);
+  if (!orderCorrect) return;
+  // In hard mode, also check all halves are unswapped
+  const halvesCorrect = allStrips.every(s => {
+    const h = s.querySelector('.strip-halves');
+    return !h || h.dataset.swapped === '0';
+  });
+  if (halvesCorrect) setTimeout(showWin, 300);
 }
 
 function showWin() {
