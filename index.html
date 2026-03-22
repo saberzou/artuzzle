@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Artuzzle</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;1,400&family=Instrument+Sans:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --black:#1a1a1a;--white:#fafaf8;--gray:#999;--light:#e8e8e6;
+  --serif:'Playfair Display',Georgia,serif;
+  --sans:'Instrument Sans','DM Sans',system-ui,sans-serif;
+  --ease:cubic-bezier(0.25,1,0.5,1);
+  --ease-snappy:cubic-bezier(0.16,1,0.3,1);
+  --space-xs:4px;--space-sm:8px;--space-md:16px;--space-lg:32px;--space-xl:64px;--space-2xl:96px;
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}
+}
+html{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+body{
+  font-family:var(--sans);font-weight:400;
+  background:var(--white);color:var(--black);
+  min-height:100dvh;overflow-x:hidden;
+  line-height:1.6;
+}
+h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
+
+/* Screens */
+.screen{
+  display:none;min-height:100dvh;padding:var(--space-lg);
+  flex-direction:column;align-items:center;justify-content:center;
+}
+.screen.active{display:flex}
+
+/* Landing */
+#landing{text-align:center;gap:var(--space-lg)}
+#landing h1{
+  font-size:clamp(3rem,12vw,7rem);
+  letter-spacing:0.02em;
+}
+#landing h1 span{display:inline-block;opacity:0}
+#landing .subtitle{
+  font-size:0.8rem;color:var(--gray);
+  letter-spacing:0.25em;text-transform:uppercase;
+  opacity:0;
+}
+.btn{
+  font-family:var(--sans);font-weight:400;
+  font-size:0.8rem;letter-spacing:0.2em;text-transform:uppercase;
+  padding:14px 40px;border:1px solid var(--black);
+  background:transparent;color:var(--black);
+  cursor:pointer;opacity:0;
+  transition:background 0.2s var(--ease),color 0.2s var(--ease);
+}
+.btn:hover{background:var(--black);color:var(--white)}
+.btn:focus-visible{outline:2px solid var(--black);outline-offset:3px}
+
+/* Back button */
+.back-btn{
+  position:fixed;top:var(--space-lg);left:var(--space-lg);
+  font-family:var(--sans);font-size:0.75rem;font-weight:400;
+  letter-spacing:0.15em;text-transform:uppercase;
+  background:none;border:none;cursor:pointer;
+  color:var(--gray);z-index:100;
+  transition:color 0.15s var(--ease);
+}
+.back-btn:hover{color:var(--black)}
+.back-btn:focus-visible{outline:2px solid var(--black);outline-offset:3px}
+
+/* Categories */
+#categories{text-align:center;gap:var(--space-lg)}
+#categories h2{font-size:clamp(1.5rem,5vw,2.2rem)}
+#categories .cat-desc{
+  max-width:440px;color:var(--gray);
+  font-size:0.85rem;line-height:1.8;
+}
+.cat-grid{display:flex;gap:var(--space-md);flex-wrap:wrap;justify-content:center}
+.cat-card{
+  width:240px;padding:var(--space-lg) var(--space-lg);
+  border:1px solid var(--light);cursor:pointer;
+  text-align:center;
+  transition:border-color 0.2s var(--ease),transform 0.3s var(--ease);
+}
+.cat-card:hover{border-color:var(--black);transform:translateY(-3px)}
+.cat-card:focus-visible{outline:2px solid var(--black);outline-offset:3px}
+.cat-card.locked{opacity:0.3;cursor:default;pointer-events:none}
+.cat-card h3{font-size:1.15rem;margin-bottom:var(--space-xs)}
+.cat-card p{font-size:0.75rem;color:var(--gray)}
+.cat-card .lock{font-size:1rem;margin-top:var(--space-sm)}
+
+/* Levels */
+#levels{text-align:center;gap:var(--space-lg)}
+#levels h2{font-size:clamp(1.3rem,4vw,1.8rem)}
+#levels .level-subtitle{color:var(--gray);font-size:0.8rem;letter-spacing:0.1em}
+.level-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:var(--space-md);max-width:640px;width:100%;
+}
+.level-card{
+  aspect-ratio:4/3;border:1px solid var(--light);
+  overflow:hidden;cursor:pointer;position:relative;
+  transition:border-color 0.2s var(--ease),transform 0.3s var(--ease);
+}
+.level-card:hover{border-color:var(--black);transform:translateY(-2px)}
+.level-card:focus-visible{outline:2px solid var(--black);outline-offset:3px}
+.level-card.locked{opacity:0.25;cursor:default;pointer-events:none;filter:grayscale(1)}
+.level-card.solved{position:relative}
+.level-card.solved::after{
+  content:'✓';position:absolute;top:var(--space-sm);right:var(--space-sm);
+  font-size:0.7rem;background:var(--black);color:var(--white);
+  width:20px;height:20px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+}
+.level-card img{width:100%;height:100%;object-fit:cover;display:block}
+.level-card .level-label{
+  position:absolute;bottom:0;left:0;right:0;
+  background:linear-gradient(transparent,rgba(0,0,0,0.7));
+  color:white;font-size:0.65rem;font-weight:400;
+  padding:var(--space-lg) var(--space-sm) var(--space-sm);
+  letter-spacing:0.05em;
+}
+
+/* Puzzle */
+#puzzle{padding:var(--space-md);position:relative}
+.puzzle-header{text-align:center;margin-bottom:var(--space-lg)}
+.puzzle-header h2{font-size:1.2rem;font-style:italic;margin-bottom:var(--space-xs)}
+.puzzle-meta{font-size:0.75rem;color:var(--gray);letter-spacing:0.15em}
+.puzzle-container{
+  position:relative;max-width:560px;width:100%;margin:0 auto;
+  border:1px solid var(--light);
+}
+.strip{
+  position:relative;width:100%;overflow:hidden;
+  cursor:pointer;display:flex;
+  transition:filter 0.15s var(--ease);
+}
+.strip:hover{filter:brightness(1.04)}
+.strip-half{width:50%;overflow:hidden}
+.strip-half canvas{display:block;width:200%}
+.strip-half.left canvas{transform:translateX(0)}
+.strip-half.right canvas{transform:translateX(-50%)}
+.strip-divider{
+  position:absolute;top:0;left:50%;width:1px;height:100%;
+  background:rgba(255,255,255,0.3);pointer-events:none;z-index:2;
+  opacity:0;transition:opacity 0.2s;
+}
+.strip:hover .strip-divider{opacity:1}
+.reference{
+  position:fixed;bottom:var(--space-lg);right:var(--space-lg);
+  width:72px;border:1px solid var(--light);
+  opacity:0.5;transition:opacity 0.2s var(--ease);z-index:50;
+}
+.reference:hover{opacity:1}
+
+/* Win Overlay */
+#win-overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(250,250,248,0.97);z-index:200;
+  flex-direction:column;align-items:center;justify-content:center;
+  padding:var(--space-lg);text-align:center;
+  overflow-y:auto;
+}
+#win-overlay.active{display:flex}
+#win-overlay .win-painting{
+  max-width:480px;width:90%;margin-bottom:var(--space-lg);
+  box-shadow:0 8px 32px rgba(0,0,0,0.08);
+}
+#win-overlay h2{font-size:1.6rem;font-style:italic;margin-bottom:var(--space-xs)}
+#win-overlay .win-artist{font-size:0.9rem;color:var(--gray)}
+#win-overlay .win-year{font-size:0.8rem;color:var(--gray);margin-bottom:var(--space-lg)}
+#win-overlay .win-text{
+  max-width:460px;font-size:0.85rem;line-height:1.8;
+  color:#555;margin-bottom:var(--space-lg);
+}
+</style>
+</head>
+<body>
+
+<div id="landing" class="screen active">
+  <h1 id="title-text"></h1>
+  <p class="subtitle">Piece together masterworks</p>
+  <button class="btn" onclick="goTo('categories')">Enter Gallery</button>
+</div>
+
+<div id="categories" class="screen">
+  <button class="back-btn" onclick="goTo('landing')">← Back</button>
+  <h2>Collections</h2>
+  <p class="cat-desc">Explore art movements through puzzles. Reconstruct masterworks strip by strip, then discover the stories behind them.</p>
+  <div class="cat-grid">
+    <div class="cat-card" onclick="goTo('levels')" tabindex="0" role="button">
+      <h3>Impressionists</h3>
+      <p>Monet, Renoir, Degas</p>
+    </div>
+    <div class="cat-card locked">
+      <h3>Post-Impressionists</h3>
+      <p>Van Gogh, Cézanne, Gauguin</p>
+      <div class="lock">🔒</div>
+    </div>
+    <div class="cat-card locked">
+      <h3>Renaissance</h3>
+      <p>Da Vinci, Raphael, Botticelli</p>
+      <div class="lock">🔒</div>
+    </div>
+  </div>
+</div>
+
+<div id="levels" class="screen">
+  <button class="back-btn" onclick="goTo('categories')">← Back</button>
+  <h2>Impressionists</h2>
+  <p class="level-subtitle">Light, color, and the fleeting moment</p>
+  <div class="level-grid" id="level-grid"></div>
+</div>
+
+<div id="puzzle" class="screen">
+  <button class="back-btn" onclick="goTo('levels')">← Back</button>
+  <div class="puzzle-header">
+    <h2 id="puzzle-title"></h2>
+    <div class="puzzle-meta"><span id="move-count">0</span> moves</div>
+  </div>
+  <div class="puzzle-container" id="puzzle-container"></div>
+  <img class="reference" id="reference-img" alt="Reference thumbnail">
+</div>
+
+<div id="win-overlay">
+  <img class="win-painting" id="win-img" alt="Completed painting">
+  <h2 id="win-title"></h2>
+  <p class="win-artist" id="win-artist"></p>
+  <p class="win-year" id="win-year"></p>
+  <p class="win-text" id="win-text"></p>
+  <button class="btn" style="opacity:1" onclick="closeWin()">Continue</button>
+</div>
+
+<script>
+const PAINTINGS = [
+  {
+    title: "Water Lilies",
+    artist: "Claude Monet",
+    year: "1906",
+    img: "https://upload.wikimedia.org/wikipedia/commons/a/aa/Claude_Monet_-_Water_Lilies_-_1906%2C_Chicago.jpg",
+    desc: "Part of Monet's series of roughly 250 oil paintings, this captures his garden pond at Giverny. He dissolved form into shimmering reflections, eliminating the horizon entirely. The viewer is immersed in water, light, and floating blooms. It was revolutionary: painting not the thing itself, but the sensation of seeing it.",
+    unlocked: true
+  },
+  {
+    title: "Bal du moulin de la Galette",
+    artist: "Pierre-Auguste Renoir",
+    year: "1876",
+    img: "https://upload.wikimedia.org/wikipedia/commons/2/21/Pierre-Auguste_Renoir%2C_Le_Moulin_de_la_Galette.jpg",
+    desc: "A joyful Sunday afternoon dance in Montmartre. Dappled sunlight filters through acacia trees, creating a mosaic of warm and cool tones across the dancers. Renoir painted it entirely on location, hauling his large canvas to the outdoor dance hall each day.",
+    unlocked: false
+  },
+  {
+    title: "The Ballet Class",
+    artist: "Edgar Degas",
+    year: "1874",
+    img: "https://upload.wikimedia.org/wikipedia/commons/3/33/Edgar_Degas_-_The_Ballet_Class_-_Google_Art_Project.jpg",
+    desc: "Degas brought the Impressionist eye indoors. His dancers are caught in unposed, candid moments of rehearsal. The off-center composition and cropped figures borrow from photography and Japanese prints, making the viewer feel like an unseen observer.",
+    unlocked: false
+  },
+  {
+    title: "Impression, Sunrise",
+    artist: "Claude Monet",
+    year: "1872",
+    img: "https://upload.wikimedia.org/wikipedia/commons/5/59/Monet_-_Impression%2C_Sunrise.jpg",
+    desc: "The painting that accidentally named the movement. Critic Louis Leroy used 'Impressionism' as an insult after seeing this hazy Le Havre harbor scene. The artists adopted it as a badge of honor. The orange sun is measurably the same luminance as the gray sky around it.",
+    unlocked: false
+  },
+  {
+    title: "A Bar at the Folies-Bergère",
+    artist: "Édouard Manet",
+    year: "1882",
+    img: "https://upload.wikimedia.org/wikipedia/commons/0/0d/Edouard_Manet%2C_A_Bar_at_the_Folies-Berg%C3%A8re.jpg",
+    desc: "Manet's last major work plays tricks with mirrors and perspective. The barmaid's reflection is deliberately misaligned, creating unease beneath the glittering surface. It's simultaneously inviting and melancholy, a meditation on loneliness in a crowd.",
+    unlocked: false
+  },
+  {
+    title: "The Cradle",
+    artist: "Berthe Morisot",
+    year: "1872",
+    img: "https://upload.wikimedia.org/wikipedia/commons/5/56/Berthe_Morisot_-_The_Cradle_-_Google_Art_Project.jpg",
+    desc: "Exhibited at the first Impressionist show in 1874, Morisot's portrait of her sister watching over a sleeping baby captures a private moment with extraordinary tenderness. The translucent veil and soft brushwork make it feel like a held breath.",
+    unlocked: false
+  }
+];
+
+const solved = new Set();
+let currentPainting = null;
+let moves = 0;
+let strips = [];
+const NUM_STRIPS = 6;
+const EASE = "power2.out";
+
+function goTo(id) {
+  const current = document.querySelector('.screen.active');
+  if (current) {
+    gsap.to(current, {
+      opacity: 0, duration: 0.25, ease: EASE,
+      onComplete: () => { current.classList.remove('active'); showScreen(id); }
+    });
+  } else showScreen(id);
+}
+
+function showScreen(id) {
+  const s = document.getElementById(id);
+  s.classList.add('active');
+  s.style.opacity = 0;
+  gsap.to(s, { opacity: 1, duration: 0.5, delay: 0.05, ease: EASE });
+  if (id === 'levels') buildLevelGrid();
+  if (id === 'categories') gsap.from('.cat-card', { y: 24, opacity: 0, duration: 0.5, stagger: 0.1, ease: EASE, delay: 0.15 });
+}
+
+// Landing
+function animateLanding() {
+  const el = document.getElementById('title-text');
+  el.innerHTML = "Artuzzle".split('').map(c => `<span>${c}</span>`).join('');
+  const tl = gsap.timeline();
+  tl.to('#title-text span', { opacity: 1, duration: 0.5, stagger: 0.07, ease: EASE, delay: 0.4 })
+    .to('.subtitle', { opacity: 1, duration: 0.6, ease: EASE }, "-=0.2")
+    .fromTo('.btn', { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: EASE }, "-=0.3");
+}
+
+// Levels
+function buildLevelGrid() {
+  const grid = document.getElementById('level-grid');
+  grid.innerHTML = '';
+  PAINTINGS.forEach((p, i) => {
+    const unlocked = p.unlocked || solved.has(i - 1);
+    const card = document.createElement('div');
+    card.className = 'level-card' + (unlocked ? '' : ' locked') + (solved.has(i) ? ' solved' : '');
+    card.setAttribute('tabindex', unlocked ? '0' : '-1');
+    card.setAttribute('role', 'button');
+    card.innerHTML = `<img src="${p.img}" alt="${p.title}" loading="lazy"><div class="level-label">${p.title}</div>`;
+    if (unlocked) card.onclick = () => startPuzzle(i);
+    grid.appendChild(card);
+  });
+  gsap.from('.level-card', { y: 16, opacity: 0, duration: 0.4, stagger: 0.08, ease: EASE, delay: 0.15 });
+}
+
+// Puzzle
+function startPuzzle(index) {
+  currentPainting = { ...PAINTINGS[index], index };
+  moves = 0;
+  document.getElementById('move-count').textContent = '0';
+  document.getElementById('puzzle-title').textContent = currentPainting.title;
+  document.getElementById('reference-img').src = currentPainting.img;
+
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => { buildPuzzle(img); goTo('puzzle'); };
+  img.onerror = () => {
+    const img2 = new Image();
+    img2.onload = () => { buildPuzzle(img2); goTo('puzzle'); };
+    img2.src = currentPainting.img;
+  };
+  img.src = currentPainting.img;
+}
+
+function buildPuzzle(img) {
+  const container = document.getElementById('puzzle-container');
+  container.innerHTML = '';
+  strips = [];
+  const w = img.naturalWidth, h = img.naturalHeight, stripH = h / NUM_STRIPS;
+
+  // Swap 3-5 strips
+  const count = 3 + Math.floor(Math.random() * 3);
+  const indices = Array.from({ length: NUM_STRIPS }, (_, i) => i);
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+  const swapped = new Set(indices.slice(0, count));
+
+  for (let i = 0; i < NUM_STRIPS; i++) {
+    const strip = document.createElement('div');
+    strip.className = 'strip';
+
+    const leftDiv = document.createElement('div');
+    leftDiv.className = 'strip-half left';
+    const leftCanvas = document.createElement('canvas');
+    const rightDiv = document.createElement('div');
+    rightDiv.className = 'strip-half right';
+    const rightCanvas = document.createElement('canvas');
+
+    leftCanvas.width = w; leftCanvas.height = Math.ceil(stripH);
+    rightCanvas.width = w; rightCanvas.height = Math.ceil(stripH);
+    leftCanvas.getContext('2d').drawImage(img, 0, Math.floor(i * stripH), w, Math.ceil(stripH), 0, 0, w, Math.ceil(stripH));
+    rightCanvas.getContext('2d').drawImage(img, 0, Math.floor(i * stripH), w, Math.ceil(stripH), 0, 0, w, Math.ceil(stripH));
+
+    leftDiv.appendChild(leftCanvas);
+    rightDiv.appendChild(rightCanvas);
+
+    const divider = document.createElement('div');
+    divider.className = 'strip-divider';
+
+    const isSwapped = swapped.has(i);
+    const state = { el: strip, swapped: isSwapped, index: i, leftDiv, rightDiv };
+    strips.push(state);
+
+    if (isSwapped) { strip.append(rightDiv, leftDiv); }
+    else { strip.append(leftDiv, rightDiv); }
+    strip.appendChild(divider);
+
+    strip.onclick = () => toggleStrip(state);
+    container.appendChild(strip);
+  }
+
+  gsap.from('.strip', {
+    x: (i) => (i % 2 === 0 ? -60 : 60),
+    opacity: 0, duration: 0.5, stagger: 0.08, ease: EASE, delay: 0.2
+  });
+}
+
+function toggleStrip(state) {
+  state.swapped = !state.swapped;
+  moves++;
+  document.getElementById('move-count').textContent = moves;
+
+  const strip = state.el;
+  const divider = strip.querySelector('.strip-divider');
+
+  gsap.to(strip, {
+    scaleX: 0.98, duration: 0.1, ease: EASE,
+    onComplete: () => {
+      // Remove children except divider, re-add in new order
+      if (state.swapped) {
+        strip.innerHTML = '';
+        strip.append(state.rightDiv, state.leftDiv);
+      } else {
+        strip.innerHTML = '';
+        strip.append(state.leftDiv, state.rightDiv);
+      }
+      strip.appendChild(divider);
+      gsap.fromTo(strip, { scaleX: 0.98 }, { scaleX: 1, duration: 0.3, ease: EASE });
+    }
+  });
+
+  setTimeout(checkWin, 350);
+}
+
+function checkWin() {
+  if (strips.every(s => !s.swapped)) {
+    setTimeout(showWin, 300);
+  }
+}
+
+function showWin() {
+  solved.add(currentPainting.index);
+  const overlay = document.getElementById('win-overlay');
+  document.getElementById('win-img').src = currentPainting.img;
+  document.getElementById('win-title').textContent = currentPainting.title;
+  document.getElementById('win-artist').textContent = currentPainting.artist;
+  document.getElementById('win-year').textContent = currentPainting.year;
+  document.getElementById('win-text').textContent = currentPainting.desc;
+
+  overlay.classList.add('active');
+  overlay.style.opacity = 0;
+
+  const tl = gsap.timeline();
+  tl.to(overlay, { opacity: 1, duration: 0.5, ease: EASE })
+    .from('.win-painting', { scale: 0.95, opacity: 0, duration: 0.6, ease: EASE }, 0.1)
+    .from('#win-title', { y: 16, opacity: 0, duration: 0.4, ease: EASE }, 0.4)
+    .from('#win-artist', { y: 16, opacity: 0, duration: 0.4, ease: EASE }, 0.5)
+    .from('#win-year', { y: 16, opacity: 0, duration: 0.4, ease: EASE }, 0.55)
+    .from('.win-text', { y: 16, opacity: 0, duration: 0.4, ease: EASE }, 0.65);
+}
+
+function closeWin() {
+  gsap.to('#win-overlay', {
+    opacity: 0, duration: 0.25, ease: EASE,
+    onComplete: () => {
+      document.getElementById('win-overlay').classList.remove('active');
+      goTo('levels');
+    }
+  });
+}
+
+animateLanding();
+</script>
+</body>
+</html>
