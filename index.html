@@ -135,20 +135,23 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
 }
 .strip{
   position:relative;width:100%;overflow:hidden;
-  cursor:pointer;display:flex;
-  transition:filter 0.15s var(--ease);
+  cursor:grab;user-select:none;-webkit-user-select:none;
+  touch-action:none;
+  transition:box-shadow 0.2s var(--ease);
 }
-.strip:hover{filter:brightness(1.04)}
-.strip-half{width:50%;overflow:hidden}
-.strip-half canvas{display:block;width:200%}
-.strip-half.left canvas{transform:translateX(0)}
-.strip-half.right canvas{transform:translateX(-50%)}
-.strip-divider{
-  position:absolute;top:0;left:50%;width:1px;height:100%;
-  background:rgba(255,255,255,0.3);pointer-events:none;z-index:2;
+.strip:active{cursor:grabbing}
+.strip.dragging{
+  z-index:10;box-shadow:0 4px 24px rgba(0,0,0,0.15);
+  opacity:0.92;
+}
+.strip canvas{display:block;width:100%}
+.strip-number{
+  position:absolute;left:var(--space-sm);top:50%;transform:translateY(-50%);
+  font-size:0.6rem;color:rgba(255,255,255,0.5);
+  font-family:var(--sans);pointer-events:none;
   opacity:0;transition:opacity 0.2s;
 }
-.strip:hover .strip-divider{opacity:1}
+.puzzle-container:hover .strip-number{opacity:1}
 .reference{
   position:fixed;bottom:var(--space-lg);right:var(--space-lg);
   width:72px;border:1px solid var(--light);
@@ -358,54 +361,109 @@ function startPuzzle(index) {
   img.src = currentPainting.img;
 }
 
+// Shuffle array ensuring no element stays in place
+function shuffleArray(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * i); // excludes i, so a[i] always moves
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  // Edge case: if first element stayed, swap with last
+  if (a[0] === 0) [a[0], a[a.length - 1]] = [a[a.length - 1], a[0]];
+  return a;
+}
+
 function buildPuzzle(img) {
   const container = document.getElementById('puzzle-container');
   container.innerHTML = '';
   strips = [];
   const w = img.naturalWidth, h = img.naturalHeight, stripH = h / NUM_STRIPS;
 
-  // Swap 3-5 strips
-  const count = 3 + Math.floor(Math.random() * 3);
-  const indices = Array.from({ length: NUM_STRIPS }, (_, i) => i);
-  for (let i = indices.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [indices[i], indices[j]] = [indices[j], indices[i]];
-  }
-  const swapped = new Set(indices.slice(0, count));
+  // Create shuffled order (correctIndex tracks which strip this really is)
+  const order = shuffleArray(Array.from({ length: NUM_STRIPS }, (_, i) => i));
 
   for (let i = 0; i < NUM_STRIPS; i++) {
+    const srcIndex = order[i]; // which row of the image this strip shows
     const strip = document.createElement('div');
     strip.className = 'strip';
+    strip.dataset.correctIndex = srcIndex;
 
-    const leftDiv = document.createElement('div');
-    leftDiv.className = 'strip-half left';
-    const leftCanvas = document.createElement('canvas');
-    const rightDiv = document.createElement('div');
-    rightDiv.className = 'strip-half right';
-    const rightCanvas = document.createElement('canvas');
-
-    leftCanvas.width = w; leftCanvas.height = Math.ceil(stripH);
-    rightCanvas.width = w; rightCanvas.height = Math.ceil(stripH);
-    leftCanvas.getContext('2d').drawImage(img, 0, Math.floor(i * stripH), w, Math.ceil(stripH), 0, 0, w, Math.ceil(stripH));
-    rightCanvas.getContext('2d').drawImage(img, 0, Math.floor(i * stripH), w, Math.ceil(stripH), 0, 0, w, Math.ceil(stripH));
-
-    leftDiv.appendChild(leftCanvas);
-    rightDiv.appendChild(rightCanvas);
-
-    const divider = document.createElement('div');
-    divider.className = 'strip-divider';
-
-    const isSwapped = swapped.has(i);
-    const state = { el: strip, swapped: isSwapped, index: i, leftDiv, rightDiv };
-    strips.push(state);
-
-    if (isSwapped) { strip.append(rightDiv, leftDiv); }
-    else { strip.append(leftDiv, rightDiv); }
-    strip.appendChild(divider);
-
-    strip.onclick = () => toggleStrip(state);
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = Math.ceil(stripH);
+    canvas.getContext('2d').drawImage(
+      img, 0, Math.floor(srcIndex * stripH), w, Math.ceil(stripH),
+      0, 0, w, Math.ceil(stripH)
+    );
+    strip.appendChild(canvas);
+    strips.push(strip);
     container.appendChild(strip);
   }
+
+  // Drag and drop (pointer events for mouse + touch)
+  let dragStrip = null, startY = 0, stripY = 0, stripRect = null;
+
+  function onPointerDown(e) {
+    const strip = e.target.closest('.strip');
+    if (!strip) return;
+    e.preventDefault();
+    dragStrip = strip;
+    dragStrip.classList.add('dragging');
+    dragStrip.setPointerCapture(e.pointerId);
+    stripRect = container.getBoundingClientRect();
+    startY = e.clientY;
+    stripY = 0;
+    gsap.set(dragStrip, { zIndex: 10 });
+  }
+
+  function onPointerMove(e) {
+    if (!dragStrip) return;
+    e.preventDefault();
+    stripY = e.clientY - startY;
+    gsap.set(dragStrip, { y: stripY });
+
+    // Find which strip we're hovering over
+    const allStrips = [...container.querySelectorAll('.strip')];
+    const dragIdx = allStrips.indexOf(dragStrip);
+    const dragRect = dragStrip.getBoundingClientRect();
+    const dragCenter = dragRect.top + dragRect.height / 2;
+
+    for (let i = 0; i < allStrips.length; i++) {
+      if (i === dragIdx) continue;
+      const r = allStrips[i].getBoundingClientRect();
+      const center = r.top + r.height / 2;
+      if (dragIdx < i && dragCenter > center) {
+        container.insertBefore(dragStrip, allStrips[i].nextSibling);
+        startY = e.clientY;
+        stripY = 0;
+        gsap.set(dragStrip, { y: 0 });
+        moves++;
+        document.getElementById('move-count').textContent = moves;
+        break;
+      } else if (dragIdx > i && dragCenter < center) {
+        container.insertBefore(dragStrip, allStrips[i]);
+        startY = e.clientY;
+        stripY = 0;
+        gsap.set(dragStrip, { y: 0 });
+        moves++;
+        document.getElementById('move-count').textContent = moves;
+        break;
+      }
+    }
+  }
+
+  function onPointerUp(e) {
+    if (!dragStrip) return;
+    dragStrip.classList.remove('dragging');
+    gsap.to(dragStrip, { y: 0, zIndex: 0, duration: 0.25, ease: EASE });
+    dragStrip = null;
+    checkWin();
+  }
+
+  container.addEventListener('pointerdown', onPointerDown);
+  container.addEventListener('pointermove', onPointerMove);
+  container.addEventListener('pointerup', onPointerUp);
+  container.addEventListener('pointercancel', onPointerUp);
 
   gsap.from('.strip', {
     x: (i) => (i % 2 === 0 ? -60 : 60),
@@ -413,37 +471,10 @@ function buildPuzzle(img) {
   });
 }
 
-function toggleStrip(state) {
-  state.swapped = !state.swapped;
-  moves++;
-  document.getElementById('move-count').textContent = moves;
-
-  const strip = state.el;
-  const divider = strip.querySelector('.strip-divider');
-
-  gsap.to(strip, {
-    scaleX: 0.98, duration: 0.1, ease: EASE,
-    onComplete: () => {
-      // Remove children except divider, re-add in new order
-      if (state.swapped) {
-        strip.innerHTML = '';
-        strip.append(state.rightDiv, state.leftDiv);
-      } else {
-        strip.innerHTML = '';
-        strip.append(state.leftDiv, state.rightDiv);
-      }
-      strip.appendChild(divider);
-      gsap.fromTo(strip, { scaleX: 0.98 }, { scaleX: 1, duration: 0.3, ease: EASE });
-    }
-  });
-
-  setTimeout(checkWin, 350);
-}
-
 function checkWin() {
-  if (strips.every(s => !s.swapped)) {
-    setTimeout(showWin, 300);
-  }
+  const allStrips = [...document.getElementById('puzzle-container').querySelectorAll('.strip')];
+  const isCorrect = allStrips.every((s, i) => parseInt(s.dataset.correctIndex) === i);
+  if (isCorrect) setTimeout(showWin, 300);
 }
 
 function showWin() {
