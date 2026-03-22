@@ -473,7 +473,9 @@ function buildPuzzle(img) {
   }
 
   // Drag and drop (pointer events for mouse + touch)
-  let dragStrip = null, startY = 0, stripY = 0, stripRect = null;
+  let dragStrip = null, originY = 0, lastSwapTime = 0;
+  const SWAP_COOLDOWN = 180; // ms between swaps to prevent jitter
+  const SWAP_THRESHOLD = 0.55; // must cross 55% of neighbor to trigger swap
 
   function onPointerDown(e) {
     const strip = e.target.closest('.strip');
@@ -482,41 +484,53 @@ function buildPuzzle(img) {
     dragStrip = strip;
     dragStrip.classList.add('dragging');
     dragStrip.setPointerCapture(e.pointerId);
-    stripRect = container.getBoundingClientRect();
-    startY = e.clientY;
-    stripY = 0;
-    gsap.set(dragStrip, { zIndex: 10 });
+    // Record where the pointer grabbed relative to the strip's current position
+    const rect = dragStrip.getBoundingClientRect();
+    originY = e.clientY - rect.top - rect.height / 2;
+    gsap.set(dragStrip, { zIndex: 10, position: 'relative' });
   }
 
   function onPointerMove(e) {
     if (!dragStrip) return;
     e.preventDefault();
-    stripY = e.clientY - startY;
-    gsap.set(dragStrip, { y: stripY });
 
-    // Find which strip we're hovering over
+    // Position strip so its center follows the pointer
+    const rect = dragStrip.getBoundingClientRect();
+    const stripH = rect.height;
+    const pointerY = e.clientY;
+
+    // Compute visual offset from strip's natural center
+    const naturalCenter = rect.top + stripH / 2 - gsap.getProperty(dragStrip, 'y');
+    const offset = pointerY - originY - naturalCenter;
+    gsap.set(dragStrip, { y: offset });
+
+    // Swap logic with cooldown
+    if (Date.now() - lastSwapTime < SWAP_COOLDOWN) return;
+
     const allStrips = [...container.querySelectorAll('.strip')];
     const dragIdx = allStrips.indexOf(dragStrip);
-    const dragRect = dragStrip.getBoundingClientRect();
-    const dragCenter = dragRect.top + dragRect.height / 2;
+    const dragCenter = pointerY - originY;
 
     for (let i = 0; i < allStrips.length; i++) {
       if (i === dragIdx) continue;
       const r = allStrips[i].getBoundingClientRect();
-      const center = r.top + r.height / 2;
-      if (dragIdx < i && dragCenter > center) {
+      const neighborH = r.height;
+
+      // Going down: pointer must cross 55% into the neighbor
+      if (dragIdx < i && dragCenter > r.top + neighborH * SWAP_THRESHOLD) {
         container.insertBefore(dragStrip, allStrips[i].nextSibling);
-        startY = e.clientY;
-        stripY = 0;
-        gsap.set(dragStrip, { y: 0 });
+        lastSwapTime = Date.now();
+        // Animate displaced strip
+        gsap.fromTo(allStrips[i], { y: stripH }, { y: 0, duration: 0.2, ease: EASE });
         moves++;
         document.getElementById('move-count').textContent = moves;
         break;
-      } else if (dragIdx > i && dragCenter < center) {
+      }
+      // Going up: pointer must cross 55% into the neighbor (from bottom)
+      if (dragIdx > i && dragCenter < r.bottom - neighborH * SWAP_THRESHOLD) {
         container.insertBefore(dragStrip, allStrips[i]);
-        startY = e.clientY;
-        stripY = 0;
-        gsap.set(dragStrip, { y: 0 });
+        lastSwapTime = Date.now();
+        gsap.fromTo(allStrips[i], { y: -stripH }, { y: 0, duration: 0.2, ease: EASE });
         moves++;
         document.getElementById('move-count').textContent = moves;
         break;
