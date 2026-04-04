@@ -371,13 +371,15 @@ const PAINTINGS = [
 const solved = new Set();
 let currentPainting = null;
 let moves = 0;
-let strips = [];
 const NUM_STRIPS = 6;
 const EASE = "power2.out";
+const SWAP_COOLDOWN = 180; // ms between swaps to prevent jitter
+const SWAP_THRESHOLD = 0.55; // must cross 55% of neighbor to trigger swap
 
 function goTo(id) {
   const current = document.querySelector('.screen.active');
   if (current) {
+    gsap.killTweensOf(current);
     gsap.to(current, {
       opacity: 0, duration: 0.25, ease: EASE,
       onComplete: () => { current.classList.remove('active'); showScreen(id); }
@@ -440,22 +442,26 @@ function startPuzzle(index) {
   img.src = currentPainting.img;
 }
 
-// Shuffle array ensuring no element stays in place
+// Shuffle array ensuring no element stays in place (derangement)
 function shuffleArray(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * i); // excludes i, so a[i] always moves
     [a[i], a[j]] = [a[j], a[i]];
   }
-  // Edge case: if first element stayed, swap with last
-  if (a[0] === 0) [a[0], a[a.length - 1]] = [a[a.length - 1], a[0]];
+  // Ensure full derangement: no element remains at its original index
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] === arr[i]) {
+      const swap = (i + 1) % a.length;
+      [a[i], a[swap]] = [a[swap], a[i]];
+    }
+  }
   return a;
 }
 
 function buildPuzzle(img) {
   const container = document.getElementById('puzzle-container');
   container.innerHTML = '';
-  strips = [];
   const w = img.naturalWidth, h = img.naturalHeight, stripH = h / NUM_STRIPS;
   const hardMode = solved.has(currentPainting.index); // replay = vertical cut added
 
@@ -533,14 +539,15 @@ function buildPuzzle(img) {
       strip.appendChild(canvas);
     }
 
-    strips.push(strip);
     container.appendChild(strip);
   }
 
   // Drag and drop (pointer events for mouse + touch)
   let dragStrip = null, originY = 0, lastSwapTime = 0;
-  const SWAP_COOLDOWN = 180; // ms between swaps to prevent jitter
-  const SWAP_THRESHOLD = 0.55; // must cross 55% of neighbor to trigger swap
+  // Remove any listeners from a previous puzzle
+  if (container._dragAbort) container._dragAbort.abort();
+  const ac = new AbortController();
+  container._dragAbort = ac;
 
   function onPointerDown(e) {
     const strip = e.target.closest('.strip');
@@ -611,10 +618,10 @@ function buildPuzzle(img) {
     checkWin();
   }
 
-  container.addEventListener('pointerdown', onPointerDown);
-  container.addEventListener('pointermove', onPointerMove);
-  container.addEventListener('pointerup', onPointerUp);
-  container.addEventListener('pointercancel', onPointerUp);
+  container.addEventListener('pointerdown', onPointerDown, { signal: ac.signal });
+  container.addEventListener('pointermove', onPointerMove, { signal: ac.signal });
+  container.addEventListener('pointerup', onPointerUp, { signal: ac.signal });
+  container.addEventListener('pointercancel', onPointerUp, { signal: ac.signal });
 
   gsap.from('.strip', {
     x: (i) => (i % 2 === 0 ? -60 : 60),
@@ -635,8 +642,9 @@ function checkWin() {
 }
 
 function showWin() {
-  solved.add(currentPainting.index);
   const overlay = document.getElementById('win-overlay');
+  if (overlay.classList.contains('active')) return;
+  solved.add(currentPainting.index);
   document.getElementById('win-img').src = currentPainting.img;
   document.getElementById('win-title').textContent = currentPainting.title;
   document.getElementById('win-artist').textContent = currentPainting.artist;
