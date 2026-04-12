@@ -156,6 +156,7 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
 .puzzle-container{
   position:relative;max-width:560px;width:100%;margin:0 auto;
   border:1px solid var(--light);
+  touch-action:none;overflow:hidden;
 }
 .strip{
   position:relative;width:100%;overflow:hidden;
@@ -196,9 +197,36 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
 .reference{
   position:fixed;bottom:var(--space-lg);right:var(--space-lg);
   width:72px;border:1px solid var(--light);
-  opacity:0.5;transition:opacity 0.2s var(--ease);z-index:50;
+  opacity:0.5;transition:all 0.3s var(--ease);z-index:50;
+  cursor:pointer;
 }
 .reference:hover{opacity:1}
+.reference.expanded{
+  width:min(320px,70vw);opacity:1;
+  box-shadow:0 8px 32px rgba(0,0,0,0.12);
+}
+
+/* Undo button */
+.undo-btn{
+  position:fixed;top:var(--space-lg);right:var(--space-lg);
+  font-family:var(--sans);font-size:0.72rem;font-weight:400;
+  letter-spacing:0.12em;text-transform:uppercase;
+  background:none;border:1px solid var(--light);cursor:pointer;
+  color:var(--gray);z-index:100;padding:6px 14px;
+  transition:color 0.15s var(--ease),border-color 0.15s var(--ease),opacity 0.2s;
+}
+.undo-btn:hover{color:var(--black);border-color:var(--black)}
+.undo-btn:disabled{opacity:0.25;cursor:default;pointer-events:none}
+
+/* Hard mode hint */
+.hard-hint{
+  position:fixed;bottom:calc(var(--space-lg) + 90px);right:var(--space-lg);
+  font-size:0.65rem;color:var(--gray);letter-spacing:0.1em;
+  text-align:right;z-index:50;
+  opacity:0;transition:opacity 0.5s var(--ease);
+  pointer-events:none;max-width:140px;line-height:1.5;
+}
+.hard-hint.visible{opacity:1}
 
 /* Loading overlay */
 #loading-overlay{
@@ -316,7 +344,9 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
     <div class="puzzle-meta"><span id="move-count">0</span> moves</div>
   </div>
   <div class="puzzle-container" id="puzzle-container"></div>
+  <button class="undo-btn" id="undo-btn" disabled onclick="undoMove()">↩ Undo</button>
   <img class="reference" id="reference-img" alt="Reference thumbnail">
+  <div class="hard-hint" id="hard-hint">Tap a strip to swap its halves</div>
 </div>
 
 <div id="win-overlay">
@@ -473,6 +503,8 @@ let currentPainting = null;
 let moves = 0;
 let puzzleStartTime = 0;
 let currentStripCount = 0;
+let moveHistory = []; // for undo
+let winTriggered = false; // prevent race
 const EASE = "power2.out";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -532,12 +564,23 @@ function hideLoadingOverlay() {
 // ── Navigation ───────────────────────────────────────────────────────────────
 function goTo(id) {
   const current = document.querySelector('.screen.active');
+  // Hide puzzle-specific UI when leaving puzzle screen
+  if (current && current.id === 'puzzle') {
+    document.getElementById('undo-btn').style.display = 'none';
+    document.getElementById('reference-img').style.display = 'none';
+    document.getElementById('hard-hint').classList.remove('visible');
+  }
   if (current) {
     gsap.to(current, {
       opacity: 0, duration: 0.25, ease: EASE,
       onComplete: () => { current.classList.remove('active'); showScreen(id); }
     });
   } else showScreen(id);
+  // Show puzzle-specific UI when entering puzzle screen
+  if (id === 'puzzle') {
+    document.getElementById('undo-btn').style.display = '';
+    document.getElementById('reference-img').style.display = '';
+  }
 }
 
 function showScreen(id) {
@@ -615,9 +658,21 @@ function startPuzzle(index) {
   puzzleStartTime   = Date.now();
   currentStripCount = getStripCount(index);
 
+  moveHistory = [];
+  winTriggered = false;
+  document.getElementById('undo-btn').disabled = true;
   document.getElementById('move-count').textContent = '0';
   document.getElementById('puzzle-title').textContent = currentPainting.title;
   document.getElementById('reference-img').src = currentPainting.img;
+  document.getElementById('reference-img').classList.remove('expanded');
+
+  // Show hard mode hint for 4 seconds on first encounter
+  const hintEl = document.getElementById('hard-hint');
+  hintEl.classList.remove('visible');
+  if (isHardMode(index) && !localStorage.getItem('artuzzle_hard_hint_seen')) {
+    setTimeout(() => hintEl.classList.add('visible'), 800);
+    setTimeout(() => { hintEl.classList.remove('visible'); localStorage.setItem('artuzzle_hard_hint_seen', '1'); }, 4800);
+  }
 
   showLoadingOverlay();
 
@@ -714,7 +769,11 @@ function buildPuzzle(img) {
 
       halvesDiv.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (winTriggered) return;
         const isSwapped = halvesDiv.dataset.swapped === '1';
+        // Save undo state before the move
+        moveHistory.push({ type: 'half-swap', target: halvesDiv, wasSwapped: isSwapped });
+        document.getElementById('undo-btn').disabled = false;
         halvesDiv.dataset.swapped = isSwapped ? '0' : '1';
         halvesDiv.classList.toggle('swapped');
         moves++;
@@ -747,8 +806,8 @@ function buildPuzzle(img) {
   let dragStrip   = null;
   let originY     = 0;
   let lastSwapTime = 0;
-  const SWAP_COOLDOWN  = 180;
-  const SWAP_THRESHOLD = 0.55;
+  const SWAP_COOLDOWN  = 140;
+  const SWAP_THRESHOLD = 0.42;
 
   function onPointerDown(e) {
     const s = e.target.closest('.strip');
@@ -788,6 +847,8 @@ function buildPuzzle(img) {
       const neighborH  = r.height;
 
       if (dragIdx < i && dragCenter > r.top + neighborH * SWAP_THRESHOLD) {
+        moveHistory.push({ type: 'drag', strip: dragStrip, before: allStrips[i].nextSibling || null });
+        document.getElementById('undo-btn').disabled = false;
         container.insertBefore(dragStrip, allStrips[i].nextSibling);
         lastSwapTime = Date.now();
         gsap.fromTo(allStrips[i], { y: stripHeight }, { y: 0, duration: 0.2, ease: EASE });
@@ -797,6 +858,8 @@ function buildPuzzle(img) {
         break;
       }
       if (dragIdx > i && dragCenter < r.bottom - neighborH * SWAP_THRESHOLD) {
+        moveHistory.push({ type: 'drag', strip: dragStrip, before: allStrips[i] });
+        document.getElementById('undo-btn').disabled = false;
         container.insertBefore(dragStrip, allStrips[i]);
         lastSwapTime = Date.now();
         gsap.fromTo(allStrips[i], { y: -stripHeight }, { y: 0, duration: 0.2, ease: EASE });
@@ -836,6 +899,7 @@ function buildPuzzle(img) {
 
 // ── Win detection ─────────────────────────────────────────────────────────────
 function checkWin() {
+  if (winTriggered) return;
   const container = document.getElementById('puzzle-container');
   const allStrips = [...container.querySelectorAll('.strip')];
   const orderCorrect = allStrips.every((s, i) => parseInt(s.dataset.correctIndex) === i);
@@ -846,6 +910,7 @@ function checkWin() {
   });
   if (!halvesCorrect) return;
 
+  winTriggered = true;
   // Bloom animation before overlay
   playWinBloom(allStrips);
 }
@@ -920,6 +985,34 @@ function closeWin() {
     }
   });
 }
+
+// ── Undo ──────────────────────────────────────────────────────────────────────
+function undoMove() {
+  if (moveHistory.length === 0 || winTriggered) return;
+  const last = moveHistory.pop();
+  const container = document.getElementById('puzzle-container');
+
+  if (last.type === 'half-swap') {
+    last.target.dataset.swapped = last.wasSwapped ? '1' : '0';
+    if (last.wasSwapped) last.target.classList.add('swapped');
+    else last.target.classList.remove('swapped');
+    gsap.fromTo(last.target, { scaleX: 0.96 }, { scaleX: 1, duration: 0.22, ease: EASE });
+  } else if (last.type === 'drag') {
+    if (last.before) container.insertBefore(last.strip, last.before);
+    else container.appendChild(last.strip);
+    gsap.fromTo(last.strip, { opacity: 0.6 }, { opacity: 1, duration: 0.25, ease: EASE });
+  }
+
+  moves = Math.max(0, moves - 1);
+  document.getElementById('move-count').textContent = moves;
+  document.getElementById('undo-btn').disabled = moveHistory.length === 0;
+  triggerVibrate();
+}
+
+// ── Reference tap-to-expand ───────────────────────────────────────────────────
+document.getElementById('reference-img').addEventListener('click', function() {
+  this.classList.toggle('expanded');
+});
 
 animateLanding();
 </script>
