@@ -36,16 +36,44 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
 .screen.active{display:flex}
 
 /* Landing */
-#landing{text-align:center;gap:var(--space-lg)}
+#landing{text-align:center;gap:var(--space-lg);position:relative;overflow:hidden}
 #landing h1{
   font-size:clamp(3rem,12vw,7rem);
   letter-spacing:0.02em;
+  position:relative;z-index:2;
 }
 #landing h1 span{display:inline-block;opacity:0}
 #landing .subtitle{
   font-size:0.8rem;color:var(--gray);
   letter-spacing:0.25em;text-transform:uppercase;
-  opacity:0;
+  opacity:0;position:relative;z-index:2;
+}
+#landing .btn{position:relative;z-index:2}
+
+/* Gallery wall */
+.gallery-wall{
+  position:absolute;inset:0;z-index:1;
+  pointer-events:none;overflow:hidden;
+}
+.gallery-frame{
+  position:absolute;
+  background:var(--white);
+  padding:6px;
+  box-shadow:0 2px 12px rgba(0,0,0,0.08), inset 0 0 0 1px rgba(0,0,0,0.06);
+  transition:transform 0.6s var(--ease);
+}
+.gallery-frame img{
+  display:block;width:100%;height:100%;object-fit:cover;
+  filter:saturate(0.85) brightness(0.97);
+}
+.gallery-frame::after{
+  content:'';position:absolute;inset:6px;
+  box-shadow:inset 0 1px 3px rgba(0,0,0,0.1);
+  pointer-events:none;
+}
+/* Subtle parallax on hover */
+@media(hover:hover){
+  #landing:hover .gallery-frame{transform:var(--hover-shift)}
 }
 .btn{
   font-family:var(--sans);font-weight:400;
@@ -299,6 +327,7 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
 <body>
 
 <div id="landing" class="screen active">
+  <div class="gallery-wall" id="gallery-wall"></div>
   <h1 id="title-text"></h1>
   <p class="subtitle">Piece together masterworks</p>
   <button class="btn" onclick="goTo('categories')">Enter Gallery</button>
@@ -604,11 +633,44 @@ function showScreen(id) {
 }
 
 // ── Landing ──────────────────────────────────────────────────────────────────
+function buildGalleryWall() {
+  const wall = document.getElementById('gallery-wall');
+  // Pick 7 paintings for the wall display
+  const picks = [0, 3, 1, 6, 9, 4, 13];
+  // Layout: [left%, top%, width, rotation, hover-shift]
+  const layout = [
+    ['-4%', '8%',  '28vw', '-6deg', 'translate(3px,-2px)'],
+    ['18%', '62%', '22vw', '3deg',  'translate(-2px,3px)'],
+    ['58%', '5%',  '24vw', '4deg',  'translate(-3px,-1px)'],
+    ['72%', '55%', '26vw', '-3deg', 'translate(2px,2px)'],
+    ['-8%', '40%', '18vw', '8deg',  'translate(4px,0px)'],
+    ['42%', '68%', '20vw', '-5deg', 'translate(-1px,3px)'],
+    ['82%', '25%', '16vw', '7deg',  'translate(-2px,-3px)'],
+  ];
+  picks.forEach((pi, i) => {
+    const [left, top, w, rot, hover] = layout[i];
+    const frame = document.createElement('div');
+    frame.className = 'gallery-frame';
+    frame.style.cssText = `left:${left};top:${top};width:${w};max-width:180px;transform:rotate(${rot});--hover-shift:rotate(${rot}) ${hover};opacity:0;`;
+    const img = document.createElement('img');
+    img.src = PAINTINGS[pi].img;
+    img.alt = PAINTINGS[pi].title;
+    img.loading = 'lazy';
+    frame.appendChild(img);
+    wall.appendChild(frame);
+  });
+}
+
 function animateLanding() {
+  buildGalleryWall();
   const el = document.getElementById('title-text');
   el.innerHTML = "Artuzzle".split('').map(c => `<span>${c}</span>`).join('');
   const tl = gsap.timeline();
-  tl.to('#title-text span', { opacity: 1, duration: 0.5, stagger: 0.07, ease: EASE, delay: 0.4 })
+  // Frames float in first
+  tl.to('.gallery-frame', {
+    opacity: 0.55, duration: 0.8, stagger: 0.12, ease: EASE, delay: 0.15
+  })
+    .to('#title-text span', { opacity: 1, duration: 0.5, stagger: 0.07, ease: EASE }, 0.5)
     .to('.subtitle', { opacity: 1, duration: 0.6, ease: EASE }, "-=0.2")
     .fromTo('.btn', { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: EASE }, "-=0.3");
 }
