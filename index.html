@@ -59,22 +59,26 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
   position:absolute;
   background:var(--white);
   padding:6px;
-  box-shadow:0 2px 12px rgba(0,0,0,0.08), inset 0 0 0 1px rgba(0,0,0,0.06);
+  box-shadow:0 2px 16px rgba(0,0,0,0.08), inset 0 0 0 1px rgba(0,0,0,0.06);
+  border-radius:2px;
+  opacity:0;
+  will-change:transform;
   transition:transform 0.6s var(--ease);
 }
 .gallery-frame img{
   display:block;width:100%;height:100%;object-fit:cover;
   filter:saturate(0.85) brightness(0.97);
+  border-radius:1px;
 }
 .gallery-frame::after{
   content:'';position:absolute;inset:6px;
   box-shadow:inset 0 1px 3px rgba(0,0,0,0.1);
-  pointer-events:none;
+  pointer-events:none;border-radius:1px;
 }
-/* Subtle parallax on hover */
 @media(hover:hover){
   #landing:hover .gallery-frame{transform:var(--hover-shift)}
 }
+@keyframes gallery-float{0%,100%{translate:0 0}50%{translate:0 -6px}}
 .btn{
   font-family:var(--sans);font-weight:400;
   font-size:0.8rem;letter-spacing:0.2em;text-transform:uppercase;
@@ -651,7 +655,7 @@ function buildGalleryWall() {
     const [left, top, w, rot, hover] = layout[i];
     const frame = document.createElement('div');
     frame.className = 'gallery-frame';
-    frame.style.cssText = `left:${left};top:${top};width:${w};max-width:180px;transform:rotate(${rot});--hover-shift:rotate(${rot}) ${hover};opacity:0;`;
+    frame.style.cssText = `left:${left};top:${top};width:${w};max-width:180px;transform:rotate(${rot});--hover-shift:rotate(${rot}) ${hover};opacity:0;animation:gallery-float ${5 + i * 0.8}s ease-in-out ${i * 0.4}s infinite;`;
     const img = document.createElement('img');
     img.src = PAINTINGS[pi].img;
     img.alt = PAINTINGS[pi].title;
@@ -666,11 +670,11 @@ function animateLanding() {
   const el = document.getElementById('title-text');
   el.innerHTML = "Artuzzle".split('').map(c => `<span>${c}</span>`).join('');
   const tl = gsap.timeline();
-  // Frames float in first
+  // Frames float in, then title
   tl.to('.gallery-frame', {
-    opacity: 0.55, duration: 0.8, stagger: 0.12, ease: EASE, delay: 0.15
+    opacity: 0.5, duration: 1, stagger: 0.12, ease: EASE, delay: 0.15
   })
-    .to('#title-text span', { opacity: 1, duration: 0.5, stagger: 0.07, ease: EASE }, 0.5)
+    .to('#title-text span', { opacity: 1, duration: 0.5, stagger: 0.07, ease: EASE }, 0.4)
     .to('.subtitle', { opacity: 1, duration: 0.6, ease: EASE }, "-=0.2")
     .fromTo('.btn', { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: EASE }, "-=0.3");
 }
