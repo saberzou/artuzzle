@@ -92,9 +92,23 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
 .cat-card .lock{font-size:1rem;margin-top:var(--space-sm)}
 
 /* Levels */
-#levels{text-align:center;gap:var(--space-lg)}
+#levels{text-align:center;gap:var(--space-sm)}
 #levels h2{font-size:clamp(1.3rem,4vw,1.8rem)}
-#levels .level-subtitle{color:var(--gray);font-size:0.8rem;letter-spacing:0.1em}
+#levels .level-subtitle{color:var(--gray);font-size:0.8rem;letter-spacing:0.1em;margin-bottom:var(--space-sm)}
+.level-progress{
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:var(--space-md);
+}
+.progress-bar-track{
+  width:100px;height:2px;
+  background:var(--light);
+  overflow:hidden;
+}
+.progress-bar-fill{
+  height:100%;background:var(--black);
+  transition:width 0.5s var(--ease);
+}
+.progress-text{font-size:0.72rem;color:var(--gray);letter-spacing:0.1em}
 .level-grid{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
@@ -108,13 +122,6 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
 .level-card:hover{border-color:var(--black);transform:translateY(-2px)}
 .level-card:focus-visible{outline:2px solid var(--black);outline-offset:3px}
 .level-card.locked{opacity:0.25;cursor:default;pointer-events:none;filter:grayscale(1)}
-.level-card.solved{position:relative}
-.level-card.solved::after{
-  content:'✓';position:absolute;top:var(--space-sm);right:var(--space-sm);
-  font-size:0.7rem;background:var(--black);color:var(--white);
-  width:20px;height:20px;border-radius:50%;
-  display:flex;align-items:center;justify-content:center;
-}
 .level-card img{width:100%;height:100%;object-fit:cover;display:block}
 .level-card .level-label{
   position:absolute;bottom:0;left:0;right:0;
@@ -122,6 +129,23 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
   color:white;font-size:0.65rem;font-weight:400;
   padding:var(--space-lg) var(--space-sm) var(--space-sm);
   letter-spacing:0.05em;
+}
+.level-card .level-stars{
+  position:absolute;top:6px;left:6px;
+  display:flex;gap:3px;align-items:center;
+}
+.level-card .level-stars .ldot{
+  width:5px;height:5px;border-radius:50%;
+  border:1px solid rgba(255,255,255,0.85);
+  display:inline-block;
+  transition:background 0.2s;
+}
+.level-card .level-stars .ldot.filled{background:rgba(255,255,255,0.9)}
+.level-card .diff-badge{
+  position:absolute;top:6px;right:6px;
+  font-size:0.6rem;color:rgba(255,255,255,0.6);
+  letter-spacing:0.05em;
+  font-family:var(--sans);
 }
 
 /* Puzzle */
@@ -138,11 +162,12 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
   cursor:grab;user-select:none;-webkit-user-select:none;
   touch-action:none;
   transition:box-shadow 0.2s var(--ease);
+  will-change:transform;
 }
 .strip:active{cursor:grabbing}
 .strip.dragging{
-  z-index:10;box-shadow:0 4px 24px rgba(0,0,0,0.15);
-  opacity:0.92;
+  z-index:10;box-shadow:0 6px 28px rgba(0,0,0,0.18);
+  opacity:0.93;
 }
 .strip canvas{display:block;width:100%}
 .strip-halves{display:flex;width:100%}
@@ -159,12 +184,52 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
   opacity:0;transition:opacity 0.2s;
 }
 .puzzle-container:hover .strip-number{opacity:1}
+
+/* Drop indicator */
+.drop-indicator{
+  width:100%;height:3px;flex-shrink:0;
+  background:linear-gradient(90deg,transparent 0%,rgba(0,0,0,0.22) 20%,rgba(0,0,0,0.22) 80%,transparent 100%);
+  pointer-events:none;
+}
+
+/* Reference thumbnail */
 .reference{
   position:fixed;bottom:var(--space-lg);right:var(--space-lg);
   width:72px;border:1px solid var(--light);
   opacity:0.5;transition:opacity 0.2s var(--ease);z-index:50;
 }
 .reference:hover{opacity:1}
+
+/* Loading overlay */
+#loading-overlay{
+  display:none;position:fixed;inset:0;
+  background:var(--white);z-index:300;
+  align-items:center;justify-content:center;
+  flex-direction:column;gap:var(--space-md);
+}
+#loading-overlay.active{display:flex}
+.spinner{
+  width:22px;height:22px;
+  border:1.5px solid var(--light);
+  border-top-color:var(--black);
+  border-radius:50%;
+  animation:spin 0.75s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-label{
+  font-size:0.72rem;color:var(--gray);
+  letter-spacing:0.2em;text-transform:uppercase;
+}
+
+/* Toast */
+#toast{
+  position:fixed;bottom:48px;left:50%;transform:translateX(-50%);
+  background:var(--black);color:var(--white);
+  font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;
+  padding:10px 22px;
+  opacity:0;pointer-events:none;
+  z-index:500;white-space:nowrap;
+}
 
 /* Win Overlay */
 #win-overlay{
@@ -181,7 +246,22 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
 }
 #win-overlay h2{font-size:1.6rem;font-style:italic;margin-bottom:var(--space-xs)}
 #win-overlay .win-artist{font-size:0.9rem;color:var(--gray)}
-#win-overlay .win-year{font-size:0.8rem;color:var(--gray);margin-bottom:var(--space-lg)}
+#win-overlay .win-year{font-size:0.8rem;color:var(--gray);margin-bottom:var(--space-sm)}
+.win-dots{
+  display:flex;gap:10px;align-items:center;
+  justify-content:center;margin-bottom:var(--space-sm);
+}
+.star-dot{
+  display:inline-block;width:11px;height:11px;
+  border-radius:50%;
+  border:1.5px solid var(--black);
+  transition:background 0.3s;
+}
+.star-dot.filled{background:var(--black)}
+.win-stats{
+  font-size:0.75rem;color:var(--gray);
+  letter-spacing:0.1em;margin-bottom:var(--space-lg);
+}
 #win-overlay .win-text{
   max-width:460px;font-size:0.85rem;line-height:1.8;
   color:#555;margin-bottom:var(--space-lg);
@@ -205,10 +285,10 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
       <h3>Impressionists</h3>
       <p>Monet, Renoir, Degas</p>
     </div>
-    <div class="cat-card locked">
+    <div class="cat-card locked" id="cat-post" tabindex="-1" role="button">
       <h3>Post-Impressionists</h3>
       <p>Van Gogh, Cézanne, Gauguin</p>
-      <div class="lock">🔒</div>
+      <div class="lock" id="cat-post-lock">🔒</div>
     </div>
     <div class="cat-card locked">
       <h3>Renaissance</h3>
@@ -222,6 +302,10 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
   <button class="back-btn" onclick="goTo('categories')">← Back</button>
   <h2>Impressionists</h2>
   <p class="level-subtitle">Light, color, and the fleeting moment</p>
+  <div class="level-progress">
+    <div class="progress-bar-track"><div class="progress-bar-fill" id="progress-fill"></div></div>
+    <span class="progress-text" id="progress-text">0 / 15</span>
+  </div>
   <div class="level-grid" id="level-grid"></div>
 </div>
 
@@ -240,9 +324,18 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
   <h2 id="win-title"></h2>
   <p class="win-artist" id="win-artist"></p>
   <p class="win-year" id="win-year"></p>
+  <div class="win-dots" id="win-dots"></div>
+  <div class="win-stats" id="win-stats"></div>
   <p class="win-text" id="win-text"></p>
   <button class="btn" style="opacity:1" onclick="closeWin()">Continue</button>
 </div>
+
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <span class="loading-label">Loading</span>
+</div>
+
+<div id="toast"></div>
 
 <script>
 const PAINTINGS = [
@@ -251,130 +344,192 @@ const PAINTINGS = [
     artist: "Claude Monet",
     year: "1906",
     img: "images/water-lilies.jpg",
-    desc: "Part of Monet's series of roughly 250 oil paintings, this captures his garden pond at Giverny. He dissolved form into shimmering reflections, eliminating the horizon entirely. The viewer is immersed in water, light, and floating blooms. It was revolutionary: painting not the thing itself, but the sensation of seeing it.",
-    unlocked: true
+    desc: "Part of Monet's series of roughly 250 oil paintings, this captures his garden pond at Giverny. He dissolved form into shimmering reflections, eliminating the horizon entirely. The viewer is immersed in water, light, and floating blooms. It was revolutionary: painting not the thing itself, but the sensation of seeing it."
   },
   {
     title: "Bal du moulin de la Galette",
     artist: "Pierre-Auguste Renoir",
     year: "1876",
     img: "images/moulin-galette.jpg",
-    desc: "A joyful Sunday afternoon dance in Montmartre. Dappled sunlight filters through acacia trees, creating a mosaic of warm and cool tones across the dancers. Renoir painted it entirely on location, hauling his large canvas to the outdoor dance hall each day.",
-    unlocked: true
+    desc: "A joyful Sunday afternoon dance in Montmartre. Dappled sunlight filters through acacia trees, creating a mosaic of warm and cool tones across the dancers. Renoir painted it entirely on location, hauling his large canvas to the outdoor dance hall each day."
   },
   {
     title: "The Ballet Class",
     artist: "Edgar Degas",
     year: "1874",
     img: "images/ballet-class.jpg",
-    desc: "Degas brought the Impressionist eye indoors. His dancers are caught in unposed, candid moments of rehearsal. The off-center composition and cropped figures borrow from photography and Japanese prints, making the viewer feel like an unseen observer.",
-    unlocked: true
+    desc: "Degas brought the Impressionist eye indoors. His dancers are caught in unposed, candid moments of rehearsal. The off-center composition and cropped figures borrow from photography and Japanese prints, making the viewer feel like an unseen observer."
   },
   {
     title: "Impression, Sunrise",
     artist: "Claude Monet",
     year: "1872",
     img: "images/impression-sunrise.jpg",
-    desc: "The painting that accidentally named the movement. Critic Louis Leroy used 'Impressionism' as an insult after seeing this hazy Le Havre harbor scene. The artists adopted it as a badge of honor. The orange sun is measurably the same luminance as the gray sky around it.",
-    unlocked: true
+    desc: "The painting that accidentally named the movement. Critic Louis Leroy used 'Impressionism' as an insult after seeing this hazy Le Havre harbor scene. The artists adopted it as a badge of honor. The orange sun is measurably the same luminance as the gray sky around it."
   },
   {
     title: "A Bar at the Folies-Bergère",
     artist: "Édouard Manet",
     year: "1882",
     img: "images/folies-bergere.jpg",
-    desc: "Manet's last major work plays tricks with mirrors and perspective. The barmaid's reflection is deliberately misaligned, creating unease beneath the glittering surface. It's simultaneously inviting and melancholy, a meditation on loneliness in a crowd.",
-    unlocked: true
+    desc: "Manet's last major work plays tricks with mirrors and perspective. The barmaid's reflection is deliberately misaligned, creating unease beneath the glittering surface. It's simultaneously inviting and melancholy, a meditation on loneliness in a crowd."
   },
   {
     title: "The Cradle",
     artist: "Berthe Morisot",
     year: "1872",
     img: "images/the-cradle.jpg",
-    desc: "Exhibited at the first Impressionist show in 1874, Morisot's portrait of her sister watching over a sleeping baby captures a private moment with extraordinary tenderness. The translucent veil and soft brushwork make it feel like a held breath.",
-    unlocked: true
+    desc: "Exhibited at the first Impressionist show in 1874, Morisot's portrait of her sister watching over a sleeping baby captures a private moment with extraordinary tenderness. The translucent veil and soft brushwork make it feel like a held breath."
   },
   {
     title: "Paris Street; Rainy Day",
     artist: "Gustave Caillebotte",
     year: "1877",
     img: "images/caillebotte-rainy.jpg",
-    desc: "Caillebotte's masterpiece combines Impressionist light with an almost photographic precision. The rain-slicked cobblestones of the Place de Dublin reflect the gray sky while pedestrians navigate with umbrellas. Its radical cropping and cinematic perspective made it feel startlingly modern.",
-    unlocked: true
+    desc: "Caillebotte's masterpiece combines Impressionist light with an almost photographic precision. The rain-slicked cobblestones of the Place de Dublin reflect the gray sky while pedestrians navigate with umbrellas. Its radical cropping and cinematic perspective made it feel startlingly modern."
   },
   {
     title: "The Floor Scrapers",
     artist: "Gustave Caillebotte",
     year: "1875",
     img: "images/caillebotte-floor.jpg",
-    desc: "Three workers scrape a wooden floor in a Haussmann apartment, their bare torsos catching the light from tall windows. Caillebotte elevated manual labor to the scale of history painting. The raking perspective pulls you into the room.",
-    unlocked: true
+    desc: "Three workers scrape a wooden floor in a Haussmann apartment, their bare torsos catching the light from tall windows. Caillebotte elevated manual labor to the scale of history painting. The raking perspective pulls you into the room."
   },
   {
     title: "The Child's Bath",
     artist: "Mary Cassatt",
     year: "1893",
     img: "images/cassatt-bath.jpg",
-    desc: "Cassatt, the only American to exhibit with the Impressionists, captures the intimate geometry of a mother bathing her child. The high viewpoint and bold pattern of the pitcher show the influence of Japanese woodblock prints she deeply admired.",
-    unlocked: true
+    desc: "Cassatt, the only American to exhibit with the Impressionists, captures the intimate geometry of a mother bathing her child. The high viewpoint and bold pattern of the pitcher show the influence of Japanese woodblock prints she deeply admired."
   },
   {
     title: "Poppy Field",
     artist: "Claude Monet",
     year: "1873",
     img: "images/monet-poppies.jpg",
-    desc: "A hillside near Argenteuil explodes with red poppies under a summer sky. Monet's wife Camille and son Jean appear twice, walking toward and away from the viewer, creating a sense of time passing within a single frame.",
-    unlocked: true
+    desc: "A hillside near Argenteuil explodes with red poppies under a summer sky. Monet's wife Camille and son Jean appear twice, walking toward and away from the viewer, creating a sense of time passing within a single frame."
   },
   {
     title: "Rouen Cathedral, Façade in Sunlight",
     artist: "Claude Monet",
     year: "1894",
     img: "images/monet-rouen.jpg",
-    desc: "One of thirty views Monet painted of Rouen Cathedral from the same window across different times and seasons. The stone dissolves into thick impasto of golden light. The building is almost unrecognizable. That was the point.",
-    unlocked: true
+    desc: "One of thirty views Monet painted of Rouen Cathedral from the same window across different times and seasons. The stone dissolves into thick impasto of golden light. The building is almost unrecognizable. That was the point."
   },
   {
     title: "Boulevard Montmartre, Spring",
     artist: "Camille Pissarro",
     year: "1897",
     img: "images/pissarro-boulevard.jpg",
-    desc: "Pissarro painted this bustling Parisian boulevard from a hotel window, capturing the energy of carriages, pedestrians, and budding trees. The elevated vantage point transforms the street into a living tapestry of movement and light.",
-    unlocked: true
+    desc: "Pissarro painted this bustling Parisian boulevard from a hotel window, capturing the energy of carriages, pedestrians, and budding trees. The elevated vantage point transforms the street into a living tapestry of movement and light."
   },
   {
     title: "L'Absinthe",
     artist: "Edgar Degas",
     year: "1876",
     img: "images/degas-absinthe.jpg",
-    desc: "Two figures sit in the Café de la Nouvelle-Athènes, isolated despite being side by side. The woman stares blankly past her glass of absinthe. Degas used the zigzag of empty marble tables to create a crushing sense of urban loneliness.",
-    unlocked: true
+    desc: "Two figures sit in the Café de la Nouvelle-Athènes, isolated despite being side by side. The woman stares blankly past her glass of absinthe. Degas used the zigzag of empty marble tables to create a crushing sense of urban loneliness."
   },
   {
     title: "The Swing",
     artist: "Pierre-Auguste Renoir",
     year: "1876",
     img: "images/renoir-swing.jpeg",
-    desc: "Painted in Renoir's garden in Montmartre, dappled sunlight falls through the trees onto a young woman on a swing. The blue-violet shadows scandalized critics who expected brown. It was Renoir proving that shadows have color.",
-    unlocked: true
+    desc: "Painted in Renoir's garden in Montmartre, dappled sunlight falls through the trees onto a young woman on a swing. The blue-violet shadows scandalized critics who expected brown. It was Renoir proving that shadows have color."
   },
   {
     title: "Flood at Port-Marly",
     artist: "Alfred Sisley",
     year: "1876",
     img: "images/sisley-flood.jpg",
-    desc: "Sisley painted the Seine's dramatic flooding with a quiet poetry. The half-submerged buildings and their reflections create a mirror world of muted blues and golds. Among the most admired landscape paintings of the Impressionist movement.",
-    unlocked: true
+    desc: "Sisley painted the Seine's dramatic flooding with a quiet poetry. The half-submerged buildings and their reflections create a mirror world of muted blues and golds. Among the most admired landscape paintings of the Impressionist movement."
   }
 ];
 
-const solved = new Set();
+// ── Progress persistence ─────────────────────────────────────────────────────
+let solved = new Set();
+let starRatings = {}; // index → 1|2|3
+
+function loadProgress() {
+  try {
+    const d = JSON.parse(localStorage.getItem('artuzzle') || 'null');
+    if (d) {
+      solved = new Set((d.solved || []).map(Number));
+      starRatings = d.stars || {};
+    }
+  } catch(e) { solved = new Set(); starRatings = {}; }
+}
+
+function saveProgress() {
+  try {
+    localStorage.setItem('artuzzle', JSON.stringify({ solved: [...solved], stars: starRatings }));
+  } catch(e) {}
+}
+
+loadProgress();
+
+// ── Game state ───────────────────────────────────────────────────────────────
 let currentPainting = null;
 let moves = 0;
-let strips = [];
-const NUM_STRIPS = 6;
+let puzzleStartTime = 0;
+let currentStripCount = 0;
 const EASE = "power2.out";
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function getStripCount(index) {
+  if (index < 3)  return 4;
+  if (index < 8)  return 6;
+  if (index < 12) return 8;
+  return 10;
+}
+
+// Paintings 8+ always use half-swap (hard mode); earlier ones only on replay.
+function isHardMode(index) {
+  return index >= 8 || solved.has(index);
+}
+
+function calcStars(movesCount, stripCount) {
+  if (movesCount <= stripCount)     return 3;
+  if (movesCount <= stripCount * 2) return 2;
+  return 1;
+}
+
+function buildStarDots(stars) {
+  return [1,2,3].map(i =>
+    `<span class="star-dot ${i <= stars ? 'filled' : ''}"></span>`
+  ).join('');
+}
+
+function buildLevelStarDots(stars) {
+  return `<div class="level-stars">${
+    [1,2,3].map(i => `<span class="ldot ${i <= stars ? 'filled' : ''}"></span>`).join('')
+  }</div>`;
+}
+
+function triggerVibrate() {
+  if ('vibrate' in navigator) navigator.vibrate(8);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  gsap.killTweensOf(t);
+  gsap.fromTo(t,
+    { opacity: 0, y: 8 },
+    { opacity: 1, y: 0, duration: 0.28, ease: EASE,
+      onComplete: () => gsap.to(t, { opacity: 0, y: -6, duration: 0.28, delay: 1.6, ease: EASE })
+    }
+  );
+}
+
+function showLoadingOverlay() {
+  document.getElementById('loading-overlay').classList.add('active');
+}
+function hideLoadingOverlay() {
+  document.getElementById('loading-overlay').classList.remove('active');
+}
+
+// ── Navigation ───────────────────────────────────────────────────────────────
 function goTo(id) {
   const current = document.querySelector('.screen.active');
   if (current) {
@@ -390,11 +545,22 @@ function showScreen(id) {
   s.classList.add('active');
   s.style.opacity = 0;
   gsap.to(s, { opacity: 1, duration: 0.5, delay: 0.05, ease: EASE });
-  if (id === 'levels') buildLevelGrid();
-  if (id === 'categories') gsap.from('.cat-card', { y: 24, opacity: 0, duration: 0.5, stagger: 0.1, ease: EASE, delay: 0.15 });
+
+  if (id === 'levels')     buildLevelGrid();
+  if (id === 'categories') {
+    gsap.from('.cat-card', { y: 24, opacity: 0, duration: 0.5, stagger: 0.1, ease: EASE, delay: 0.15 });
+    // Unlock Post-Impressionists if all 15 solved
+    if (solved.size >= 15) {
+      const card = document.getElementById('cat-post');
+      card.classList.remove('locked');
+      card.setAttribute('tabindex', '0');
+      card.onclick = () => showToast('Coming soon — stay tuned');
+      document.getElementById('cat-post-lock').style.display = 'none';
+    }
+  }
 }
 
-// Landing
+// ── Landing ──────────────────────────────────────────────────────────────────
 function animateLanding() {
   const el = document.getElementById('title-text');
   el.innerHTML = "Artuzzle".split('').map(c => `<span>${c}</span>`).join('');
@@ -404,95 +570,135 @@ function animateLanding() {
     .fromTo('.btn', { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: EASE }, "-=0.3");
 }
 
-// Levels
+// ── Levels ───────────────────────────────────────────────────────────────────
 function buildLevelGrid() {
   const grid = document.getElementById('level-grid');
   grid.innerHTML = '';
+  const count = solved.size;
+  document.getElementById('progress-fill').style.width = `${(count / 15) * 100}%`;
+  document.getElementById('progress-text').textContent = `${count} / 15`;
+
   PAINTINGS.forEach((p, i) => {
-    const unlocked = p.unlocked || solved.has(i - 1);
+    // First 3 always unlocked; each subsequent unlocks when the previous is solved
+    const unlocked = i < 3 || solved.has(i - 1);
+    const isSolved  = solved.has(i);
+    const stars     = starRatings[i] || 0;
+    const strips    = getStripCount(i);
+    const hard      = isHardMode(i);
+
     const card = document.createElement('div');
-    card.className = 'level-card' + (unlocked ? '' : ' locked') + (solved.has(i) ? ' solved' : '');
+    card.className = 'level-card' + (unlocked ? '' : ' locked');
     card.setAttribute('tabindex', unlocked ? '0' : '-1');
     card.setAttribute('role', 'button');
-    card.innerHTML = `<img src="${p.img}" alt="${p.title}" loading="lazy"><div class="level-label">${p.title}</div>`;
+
+    // Difficulty badge
+    const diffLabel = hard ? `${strips}× ⊞` : `${strips}×`;
+
+    card.innerHTML =
+      `<img src="${p.img}" alt="${p.title}" loading="lazy" onerror="this.style.background='#e8e8e6'">`+
+      `<div class="level-label">${p.title}</div>`+
+      `<span class="diff-badge">${diffLabel}</span>`+
+      (isSolved ? buildLevelStarDots(stars) : '');
+
     if (unlocked) card.onclick = () => startPuzzle(i);
+    card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') card.click(); });
     grid.appendChild(card);
   });
-  gsap.from('.level-card', { y: 16, opacity: 0, duration: 0.4, stagger: 0.08, ease: EASE, delay: 0.15 });
+
+  gsap.from('.level-card', { y: 16, opacity: 0, duration: 0.4, stagger: 0.06, ease: EASE, delay: 0.15 });
 }
 
-// Puzzle
+// ── Start puzzle ─────────────────────────────────────────────────────────────
 function startPuzzle(index) {
-  currentPainting = { ...PAINTINGS[index], index };
-  moves = 0;
+  currentPainting   = { ...PAINTINGS[index], index };
+  moves             = 0;
+  puzzleStartTime   = Date.now();
+  currentStripCount = getStripCount(index);
+
   document.getElementById('move-count').textContent = '0';
   document.getElementById('puzzle-title').textContent = currentPainting.title;
   document.getElementById('reference-img').src = currentPainting.img;
 
+  showLoadingOverlay();
+
   const img = new Image();
   img.crossOrigin = 'anonymous';
-  img.onload = () => { buildPuzzle(img); goTo('puzzle'); };
+
+  img.onload = () => {
+    hideLoadingOverlay();
+    buildPuzzle(img);
+    goTo('puzzle');
+  };
+
   img.onerror = () => {
+    // Retry without crossOrigin (some servers reject CORS headers)
     const img2 = new Image();
-    img2.onload = () => { buildPuzzle(img2); goTo('puzzle'); };
+    img2.onload = () => {
+      hideLoadingOverlay();
+      buildPuzzle(img2);
+      goTo('puzzle');
+    };
+    img2.onerror = () => {
+      hideLoadingOverlay();
+      showToast('Image failed to load');
+    };
     img2.src = currentPainting.img;
   };
+
   img.src = currentPainting.img;
 }
 
-// Shuffle array ensuring no element stays in place
+// ── Shuffle (derangement-ish) ─────────────────────────────────────────────────
 function shuffleArray(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * i); // excludes i, so a[i] always moves
+    const j = Math.floor(Math.random() * i);
     [a[i], a[j]] = [a[j], a[i]];
   }
-  // Edge case: if first element stayed, swap with last
   if (a[0] === 0) [a[0], a[a.length - 1]] = [a[a.length - 1], a[0]];
   return a;
 }
 
+// ── Build puzzle ──────────────────────────────────────────────────────────────
 function buildPuzzle(img) {
-  const container = document.getElementById('puzzle-container');
+  const container   = document.getElementById('puzzle-container');
   container.innerHTML = '';
-  strips = [];
-  const w = img.naturalWidth, h = img.naturalHeight, stripH = h / NUM_STRIPS;
-  const hardMode = solved.has(currentPainting.index); // replay = vertical cut added
+  const numStrips = currentStripCount;
+  const hardMode  = isHardMode(currentPainting.index);
+  const w = img.naturalWidth, h = img.naturalHeight, stripH = h / numStrips;
 
-  // Create shuffled order (correctIndex tracks which strip this really is)
-  const order = shuffleArray(Array.from({ length: NUM_STRIPS }, (_, i) => i));
+  const order = shuffleArray(Array.from({ length: numStrips }, (_, i) => i));
 
-  // In hard mode, pick 3-5 strips to have their halves swapped
-  let swappedSet = new Set();
+  // In hard mode, randomly swap some strips' left/right halves
+  const swappedSet = new Set();
   if (hardMode) {
-    const count = 3 + Math.floor(Math.random() * 3);
-    const candidates = shuffleArray(Array.from({ length: NUM_STRIPS }, (_, i) => i));
-    for (let k = 0; k < count; k++) swappedSet.add(candidates[k]);
+    const count = Math.max(2, Math.floor(numStrips * 0.4));
+    shuffleArray(Array.from({ length: numStrips }, (_, i) => i))
+      .slice(0, count).forEach(k => swappedSet.add(k));
   }
 
-  for (let i = 0; i < NUM_STRIPS; i++) {
-    const srcIndex = order[i]; // which row of the image this strip shows
+  for (let i = 0; i < numStrips; i++) {
+    const srcIndex = order[i];
     const strip = document.createElement('div');
     strip.className = 'strip';
     strip.dataset.correctIndex = srcIndex;
 
     if (hardMode) {
-      // Split into left and right halves
-      const halfW = Math.ceil(w / 2);
+      const halfW    = Math.ceil(w / 2);
       const halvesDiv = document.createElement('div');
-      halvesDiv.className = 'strip-halves' + (swappedSet.has(i) ? ' swapped' : '');
+      halvesDiv.className  = 'strip-halves' + (swappedSet.has(i) ? ' swapped' : '');
       halvesDiv.dataset.swapped = swappedSet.has(i) ? '1' : '0';
 
-      const leftCanvas = document.createElement('canvas');
-      leftCanvas.width = halfW;
+      const leftCanvas  = document.createElement('canvas');
+      leftCanvas.width  = halfW;
       leftCanvas.height = Math.ceil(stripH);
       leftCanvas.getContext('2d').drawImage(
         img, 0, Math.floor(srcIndex * stripH), halfW, Math.ceil(stripH),
         0, 0, halfW, Math.ceil(stripH)
       );
 
-      const rightCanvas = document.createElement('canvas');
-      rightCanvas.width = w - halfW;
+      const rightCanvas  = document.createElement('canvas');
+      rightCanvas.width  = w - halfW;
       rightCanvas.height = Math.ceil(stripH);
       rightCanvas.getContext('2d').drawImage(
         img, halfW, Math.floor(srcIndex * stripH), w - halfW, Math.ceil(stripH),
@@ -502,12 +708,10 @@ function buildPuzzle(img) {
       halvesDiv.appendChild(leftCanvas);
       halvesDiv.appendChild(rightCanvas);
 
-      // Vertical divider line
       const divV = document.createElement('div');
       divV.className = 'strip-divider-v';
       halvesDiv.appendChild(divV);
 
-      // Tap to toggle halves
       halvesDiv.addEventListener('click', (e) => {
         e.stopPropagation();
         const isSwapped = halvesDiv.dataset.swapped === '1';
@@ -515,16 +719,15 @@ function buildPuzzle(img) {
         halvesDiv.classList.toggle('swapped');
         moves++;
         document.getElementById('move-count').textContent = moves;
-        // Quick flip animation
-        gsap.fromTo(halvesDiv, { scaleX: 0.96 }, { scaleX: 1, duration: 0.25, ease: EASE });
+        triggerVibrate();
+        gsap.fromTo(halvesDiv, { scaleX: 0.96 }, { scaleX: 1, duration: 0.22, ease: EASE });
         setTimeout(checkWin, 300);
       });
 
       strip.appendChild(halvesDiv);
     } else {
-      // Simple mode: full-width canvas
-      const canvas = document.createElement('canvas');
-      canvas.width = w;
+      const canvas  = document.createElement('canvas');
+      canvas.width  = w;
       canvas.height = Math.ceil(stripH);
       canvas.getContext('2d').drawImage(
         img, 0, Math.floor(srcIndex * stripH), w, Math.ceil(stripH),
@@ -533,87 +736,96 @@ function buildPuzzle(img) {
       strip.appendChild(canvas);
     }
 
-    strips.push(strip);
     container.appendChild(strip);
   }
 
-  // Drag and drop (pointer events for mouse + touch)
-  let dragStrip = null, originY = 0, lastSwapTime = 0;
-  const SWAP_COOLDOWN = 180; // ms between swaps to prevent jitter
-  const SWAP_THRESHOLD = 0.55; // must cross 55% of neighbor to trigger swap
+  // ── Drag & drop ────────────────────────────────────────────────────────────
+  // Drop indicator element (a thin line showing landing position)
+  const dropIndicator = document.createElement('div');
+  dropIndicator.className = 'drop-indicator';
+
+  let dragStrip   = null;
+  let originY     = 0;
+  let lastSwapTime = 0;
+  const SWAP_COOLDOWN  = 180;
+  const SWAP_THRESHOLD = 0.55;
 
   function onPointerDown(e) {
-    const strip = e.target.closest('.strip');
-    if (!strip) return;
+    const s = e.target.closest('.strip');
+    if (!s) return;
     e.preventDefault();
-    dragStrip = strip;
+    dragStrip = s;
     dragStrip.classList.add('dragging');
     dragStrip.setPointerCapture(e.pointerId);
-    // Record where the pointer grabbed relative to the strip's current position
     const rect = dragStrip.getBoundingClientRect();
     originY = e.clientY - rect.top - rect.height / 2;
-    gsap.set(dragStrip, { zIndex: 10, position: 'relative' });
+    gsap.set(dragStrip, { zIndex: 10 });
+
+    // Insert drop indicator just above the dragged strip
+    container.insertBefore(dropIndicator, dragStrip);
   }
 
   function onPointerMove(e) {
     if (!dragStrip) return;
     e.preventDefault();
 
-    // Position strip so its center follows the pointer
-    const rect = dragStrip.getBoundingClientRect();
-    const stripH = rect.height;
-    const pointerY = e.clientY;
-
-    // Compute visual offset from strip's natural center
-    const naturalCenter = rect.top + stripH / 2 - gsap.getProperty(dragStrip, 'y');
+    const rect        = dragStrip.getBoundingClientRect();
+    const stripHeight = rect.height;
+    const pointerY    = e.clientY;
+    const naturalCenter = rect.top + stripHeight / 2 - gsap.getProperty(dragStrip, 'y');
     const offset = pointerY - originY - naturalCenter;
     gsap.set(dragStrip, { y: offset });
 
-    // Swap logic with cooldown
     if (Date.now() - lastSwapTime < SWAP_COOLDOWN) return;
 
-    const allStrips = [...container.querySelectorAll('.strip')];
-    const dragIdx = allStrips.indexOf(dragStrip);
+    const allStrips  = [...container.querySelectorAll('.strip')];
+    const dragIdx    = allStrips.indexOf(dragStrip);
     const dragCenter = pointerY - originY;
 
     for (let i = 0; i < allStrips.length; i++) {
       if (i === dragIdx) continue;
-      const r = allStrips[i].getBoundingClientRect();
-      const neighborH = r.height;
+      const r          = allStrips[i].getBoundingClientRect();
+      const neighborH  = r.height;
 
-      // Going down: pointer must cross 55% into the neighbor
       if (dragIdx < i && dragCenter > r.top + neighborH * SWAP_THRESHOLD) {
         container.insertBefore(dragStrip, allStrips[i].nextSibling);
         lastSwapTime = Date.now();
-        // Animate displaced strip
-        gsap.fromTo(allStrips[i], { y: stripH }, { y: 0, duration: 0.2, ease: EASE });
+        gsap.fromTo(allStrips[i], { y: stripHeight }, { y: 0, duration: 0.2, ease: EASE });
         moves++;
         document.getElementById('move-count').textContent = moves;
+        triggerVibrate();
         break;
       }
-      // Going up: pointer must cross 55% into the neighbor (from bottom)
       if (dragIdx > i && dragCenter < r.bottom - neighborH * SWAP_THRESHOLD) {
         container.insertBefore(dragStrip, allStrips[i]);
         lastSwapTime = Date.now();
-        gsap.fromTo(allStrips[i], { y: -stripH }, { y: 0, duration: 0.2, ease: EASE });
+        gsap.fromTo(allStrips[i], { y: -stripHeight }, { y: 0, duration: 0.2, ease: EASE });
         moves++;
         document.getElementById('move-count').textContent = moves;
+        triggerVibrate();
         break;
       }
     }
+
+    // Keep indicator just above dragStrip in the DOM
+    container.insertBefore(dropIndicator, dragStrip);
   }
 
-  function onPointerUp(e) {
+  function onPointerUp() {
     if (!dragStrip) return;
+    // Remove indicator
+    if (dropIndicator.parentNode) dropIndicator.parentNode.removeChild(dropIndicator);
+
     dragStrip.classList.remove('dragging');
-    gsap.to(dragStrip, { y: 0, zIndex: 0, duration: 0.25, ease: EASE });
+    // Spring snap-back to natural position
+    gsap.to(dragStrip, { y: 0, duration: 0.38, ease: 'back.out(1.4)', zIndex: 0 });
     dragStrip = null;
     checkWin();
   }
 
-  container.addEventListener('pointerdown', onPointerDown);
-  container.addEventListener('pointermove', onPointerMove);
-  container.addEventListener('pointerup', onPointerUp);
+  container.addEventListener('pointerdown',  onPointerDown);
+  container.addEventListener('pointermove',  onPointerMove);
+  container.addEventListener('pointerup',    onPointerUp);
   container.addEventListener('pointercancel', onPointerUp);
 
   gsap.from('.strip', {
@@ -622,42 +834,83 @@ function buildPuzzle(img) {
   });
 }
 
+// ── Win detection ─────────────────────────────────────────────────────────────
 function checkWin() {
-  const allStrips = [...document.getElementById('puzzle-container').querySelectorAll('.strip')];
+  const container = document.getElementById('puzzle-container');
+  const allStrips = [...container.querySelectorAll('.strip')];
   const orderCorrect = allStrips.every((s, i) => parseInt(s.dataset.correctIndex) === i);
   if (!orderCorrect) return;
-  // In hard mode, also check all halves are unswapped
   const halvesCorrect = allStrips.every(s => {
     const h = s.querySelector('.strip-halves');
     return !h || h.dataset.swapped === '0';
   });
-  if (halvesCorrect) setTimeout(showWin, 300);
+  if (!halvesCorrect) return;
+
+  // Bloom animation before overlay
+  playWinBloom(allStrips);
 }
 
-function showWin() {
-  solved.add(currentPainting.index);
-  const overlay = document.getElementById('win-overlay');
-  document.getElementById('win-img').src = currentPainting.img;
-  document.getElementById('win-title').textContent = currentPainting.title;
-  document.getElementById('win-artist').textContent = currentPainting.artist;
-  document.getElementById('win-year').textContent = currentPainting.year;
-  document.getElementById('win-text').textContent = currentPainting.desc;
+function playWinBloom(allStrips) {
+  // Staggered brightness bloom from center outward, then settle
+  gsap.to(allStrips, {
+    filter: 'brightness(1.28) saturate(1.2)',
+    duration: 0.22,
+    stagger: { amount: 0.28, from: 'center' },
+    ease: EASE,
+    onComplete: () => {
+      gsap.to(allStrips, {
+        filter: 'brightness(1) saturate(1)',
+        duration: 0.35,
+        stagger: { amount: 0.2, from: 'center' },
+        ease: EASE
+      });
+      setTimeout(showWin, 420);
+    }
+  });
+}
 
+// ── Win overlay ───────────────────────────────────────────────────────────────
+function showWin() {
+  const idx    = currentPainting.index;
+  const stars  = calcStars(moves, currentStripCount);
+  starRatings[idx] = Math.max(starRatings[idx] || 0, stars); // keep best
+  solved.add(idx);
+  saveProgress();
+
+  // Elapsed time
+  const elapsed = Math.floor((Date.now() - puzzleStartTime) / 1000);
+  const m = Math.floor(elapsed / 60);
+  const s = elapsed % 60;
+  const timeStr = m > 0
+    ? `${m}m ${s < 10 ? '0' : ''}${s}s`
+    : `${s}s`;
+
+  document.getElementById('win-img').src    = currentPainting.img;
+  document.getElementById('win-title').textContent  = currentPainting.title;
+  document.getElementById('win-artist').textContent = currentPainting.artist;
+  document.getElementById('win-year').textContent   = currentPainting.year;
+  document.getElementById('win-text').textContent   = currentPainting.desc;
+  document.getElementById('win-dots').innerHTML     = buildStarDots(stars);
+  document.getElementById('win-stats').textContent  = `${moves} moves · ${timeStr}`;
+
+  const overlay = document.getElementById('win-overlay');
   overlay.classList.add('active');
   overlay.style.opacity = 0;
 
   const tl = gsap.timeline();
-  tl.to(overlay, { opacity: 1, duration: 0.5, ease: EASE })
+  tl.to(overlay,        { opacity: 1, duration: 0.5, ease: EASE })
     .from('.win-painting', { scale: 0.95, opacity: 0, duration: 0.6, ease: EASE }, 0.1)
-    .from('#win-title', { y: 16, opacity: 0, duration: 0.4, ease: EASE }, 0.4)
+    .from('#win-title',  { y: 16, opacity: 0, duration: 0.4, ease: EASE }, 0.4)
     .from('#win-artist', { y: 16, opacity: 0, duration: 0.4, ease: EASE }, 0.5)
-    .from('#win-year', { y: 16, opacity: 0, duration: 0.4, ease: EASE }, 0.55)
-    .from('.win-text', { y: 16, opacity: 0, duration: 0.4, ease: EASE }, 0.65);
+    .from('#win-year',   { y: 16, opacity: 0, duration: 0.4, ease: EASE }, 0.55)
+    .from('.star-dot',   { scale: 0, opacity: 0, duration: 0.3, stagger: 0.1, ease: 'back.out(2)' }, 0.65)
+    .from('#win-stats',  { y: 10, opacity: 0, duration: 0.3, ease: EASE }, 0.85)
+    .from('.win-text',   { y: 16, opacity: 0, duration: 0.4, ease: EASE }, 0.9);
 }
 
 function closeWin() {
   const overlay = document.getElementById('win-overlay');
-  overlay.style.pointerEvents = 'none'; // prevent double-tap issues
+  overlay.style.pointerEvents = 'none';
   gsap.to(overlay, {
     opacity: 0, duration: 0.25, ease: EASE,
     onComplete: () => {
