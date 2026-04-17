@@ -37,7 +37,9 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
 
 /* Landing */
 #landing{
-  text-align:center;gap:var(--space-lg);position:relative;overflow:hidden;padding-bottom:max(env(safe-area-inset-bottom),24px);
+  text-align:center;gap:var(--space-lg);position:relative;overflow:hidden;
+  padding-top:max(env(safe-area-inset-top,0px),var(--space-xl));
+  padding-bottom:max(env(safe-area-inset-bottom,0px),var(--space-xl));
   background:#111;
   background-image:
     radial-gradient(ellipse 600px 500px at 20% 30%, rgba(180,160,120,0.07) 0%, transparent 70%),
@@ -60,7 +62,7 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
   position:relative;z-index:2;
   border-color:rgba(255,255,255,0.6);color:rgba(255,255,255,0.85);
   background:transparent;
-  margin-top:auto;padding-bottom:env(safe-area-inset-bottom,0px);
+  margin-top:var(--space-xl);
 }
 #landing .btn:hover{background:rgba(255,255,255,0.9);color:#111}
 #landing .btn:focus-visible{outline-color:rgba(255,255,255,0.6)}
