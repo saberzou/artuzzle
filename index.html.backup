@@ -222,6 +222,8 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
   position:relative;max-width:560px;width:100%;margin:0 auto;
   border:1px solid var(--light);
   touch-action:none;overflow:hidden;
+}
+.puzzle-container{
   display:grid;
   grid-template-columns:repeat(var(--cols,2),1fr);
   gap:2px;
@@ -544,6 +546,11 @@ function getStripCount(index) {
   return 10;
 }
 
+// Paintings 8+ always use half-swap (hard mode); earlier ones only on replay.
+function isHardMode(index) {
+  return index >= 8 || solved.has(index);
+}
+
 function calcStars(movesCount, stripCount) {
   if (movesCount <= stripCount)     return 3;
   if (movesCount <= stripCount * 2) return 2;
@@ -781,12 +788,15 @@ function buildLevelGrid() {
     const isSolved  = solved.has(i);
     const stars     = starRatings[i] || 0;
     const strips    = getStripCount(i);
-    const diffLabel = `${strips}×`;
+    const hard      = isHardMode(i);
 
     const card = document.createElement('div');
     card.className = 'level-card' + (unlocked ? '' : ' locked');
     card.setAttribute('tabindex', unlocked ? '0' : '-1');
     card.setAttribute('role', 'button');
+
+    // Difficulty badge
+    const diffLabel = hard ? `${strips}× ⊞` : `${strips}×`;
 
     card.innerHTML =
       `<img src="${p.img}" alt="${p.title}" loading="lazy" onerror="this.style.background='#e8e8e6'">`+
@@ -915,8 +925,12 @@ function buildPuzzle(img) {
         selectedPiece = null;
       } else {
         // Swap the two pieces
+        const allPieces = [...container.querySelectorAll('.piece')];
+        const idx1 = allPieces.indexOf(selectedPiece);
+        const idx2 = allPieces.indexOf(piece);
+
         // Save undo state
-        moveHistory.push({ type: 'swap', pieceA: selectedPiece, pieceB: piece });
+        moveHistory.push({ type: 'swap', idx1, idx2 });
         document.getElementById('undo-btn').disabled = false;
 
         // DOM swap
@@ -945,12 +959,30 @@ function buildPuzzle(img) {
 }
 
 function swapPiecesInDOM(container, a, b) {
-  // Simple DOM swap using a placeholder
-  const placeholder = document.createElement('div');
-  container.insertBefore(placeholder, a);
-  container.insertBefore(a, b);
-  container.insertBefore(b, placeholder);
-  container.removeChild(placeholder);
+  const allPieces = [...container.querySelectorAll('.piece')];
+  const idxA = allPieces.indexOf(a);
+  const idxB = allPieces.indexOf(b);
+  if (idxA < idxB) {
+    container.insertBefore(b, a);
+    // a is now after where b was, need to put a in b's old spot
+    const allAfter = [...container.querySelectorAll('.piece')];
+    const bNewIdx = allAfter.indexOf(b);
+    // a should go where b originally was (idxB)
+    if (idxB + 1 < allAfter.length) {
+      container.insertBefore(a, allAfter[idxB + 1]);
+    } else {
+      container.appendChild(a);
+    }
+  } else {
+    container.insertBefore(a, b);
+    const allAfter = [...container.querySelectorAll('.piece')];
+    const aNewIdx = allAfter.indexOf(a);
+    if (idxA + 1 < allAfter.length) {
+      container.insertBefore(b, allAfter[idxA + 1]);
+    } else {
+      container.appendChild(b);
+    }
+  }
 }
 
 // ── Win detection ─────────────────────────────────────────────────────────────
@@ -1043,9 +1075,14 @@ function undoMove() {
   const container = document.getElementById('puzzle-container');
 
   if (last.type === 'swap') {
-    swapPiecesInDOM(container, last.pieceA, last.pieceB);
-    gsap.fromTo(last.pieceA, { scale: 0.9, opacity: 0.7 }, { scale: 1, opacity: 1, duration: 0.25, ease: EASE });
-    gsap.fromTo(last.pieceB, { scale: 0.9, opacity: 0.7 }, { scale: 1, opacity: 1, duration: 0.25, ease: EASE });
+    const allPieces = [...container.querySelectorAll('.piece')];
+    const a = allPieces[last.idx1];
+    const b = allPieces[last.idx2];
+    if (a && b) {
+      swapPiecesInDOM(container, a, b);
+      gsap.fromTo(a, { scale: 0.9, opacity: 0.7 }, { scale: 1, opacity: 1, duration: 0.25, ease: EASE });
+      gsap.fromTo(b, { scale: 0.9, opacity: 0.7 }, { scale: 1, opacity: 1, duration: 0.25, ease: EASE });
+    }
   }
 
   moves = Math.max(0, moves - 1);
