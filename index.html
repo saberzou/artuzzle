@@ -9,7 +9,7 @@
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --black:#1a1a1a;--white:#fafaf8;--gray:#999;--light:#e8e8e6;
+  --black:#fafaf8;--white:#111;--gray:#888;--light:#2a2a2a;
   --serif:'Playfair Display',Georgia,serif;
   --sans:'Instrument Sans','DM Sans',system-ui,sans-serif;
   --ease:cubic-bezier(0.25,1,0.5,1);
@@ -36,19 +36,55 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
 .screen.active{display:flex}
 
 /* Landing */
-#landing{text-align:center;gap:var(--space-lg);position:relative;overflow:hidden}
+#landing{
+  text-align:center;gap:var(--space-lg);position:relative;overflow:hidden;
+  background:#111;
+  background-image:
+    radial-gradient(ellipse 600px 500px at 20% 30%, rgba(180,160,120,0.07) 0%, transparent 70%),
+    radial-gradient(ellipse 500px 400px at 75% 60%, rgba(180,160,120,0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 300px 300px at 50% 50%, rgba(200,180,140,0.04) 0%, transparent 60%);
+}
 #landing h1{
-  font-size:clamp(3rem,12vw,7rem);
-  letter-spacing:0.02em;
+  font-size:clamp(2.4rem,10vw,5rem);
+  letter-spacing:0.04em;
+  color:#fafaf0;
   position:relative;z-index:2;
 }
 #landing h1 span{display:inline-block;opacity:0}
 #landing .subtitle{
-  font-size:0.8rem;color:var(--gray);
+  font-size:0.8rem;color:rgba(255,255,255,0.45);
   letter-spacing:0.25em;text-transform:uppercase;
   opacity:0;position:relative;z-index:2;
 }
-#landing .btn{position:relative;z-index:2}
+#landing .btn{
+  position:relative;z-index:2;
+  border-color:rgba(255,255,255,0.6);color:rgba(255,255,255,0.85);
+  background:transparent;
+}
+#landing .btn:hover{background:rgba(255,255,255,0.9);color:#111}
+#landing .btn:focus-visible{outline-color:rgba(255,255,255,0.6)}
+
+/* Hero puzzle */
+.hero-puzzle{
+  position:relative;z-index:2;
+  width:min(340px,70vw);aspect-ratio:4/3;
+  margin:0 auto;
+}
+.hero-piece{
+  position:absolute;will-change:transform;
+  overflow:hidden;
+  box-shadow:0 4px 24px rgba(0,0,0,0.5);
+}
+.hero-piece img{
+  display:block;position:absolute;
+  width:100%;height:100%;object-fit:cover;
+}
+/* Puzzle tooth on hero — right edge tab */
+.hero-piece.has-tooth{
+  clip-path:polygon(
+    0% 0%, 85% 0%, 85% 35%, 100% 38%, 100% 62%, 85% 65%, 85% 100%, 0% 100%
+  );
+}
 
 /* Gallery wall */
 .gallery-wall{
@@ -57,28 +93,28 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
 }
 .gallery-frame{
   position:absolute;
-  background:var(--white);
-  padding:6px;
-  box-shadow:0 2px 16px rgba(0,0,0,0.08), inset 0 0 0 1px rgba(0,0,0,0.06);
-  border-radius:2px;
+  background:none;
+  padding:0;
+  box-shadow:0 4px 24px rgba(0,0,0,0.4);
+  border-radius:1px;
   opacity:0;
   will-change:transform;
   transition:transform 0.6s var(--ease);
+  pointer-events:auto;
+  cursor:pointer;
 }
 .gallery-frame img{
   display:block;width:100%;height:100%;object-fit:cover;
-  filter:saturate(0.85) brightness(0.97);
+  filter:saturate(0.8) brightness(0.75);
   border-radius:1px;
 }
-.gallery-frame::after{
-  content:'';position:absolute;inset:6px;
-  box-shadow:inset 0 1px 3px rgba(0,0,0,0.1);
-  pointer-events:none;border-radius:1px;
+.gallery-frame:hover img{
+  filter:saturate(0.9) brightness(0.9);
+  transition:filter 0.4s var(--ease);
 }
 @media(hover:hover){
   #landing:hover .gallery-frame{transform:var(--hover-shift)}
 }
-@keyframes gallery-float{0%,100%{translate:0 0}50%{translate:0 -6px}}
 .btn{
   font-family:var(--sans);font-weight:400;
   font-size:0.8rem;letter-spacing:0.2em;text-transform:uppercase;
@@ -113,10 +149,10 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
 .cat-card{
   width:240px;padding:var(--space-lg) var(--space-lg);
   border:1px solid var(--light);cursor:pointer;
-  text-align:center;
+  text-align:center;background:#1a1a1a;
   transition:border-color 0.2s var(--ease),transform 0.3s var(--ease);
 }
-.cat-card:hover{border-color:var(--black);transform:translateY(-3px)}
+.cat-card:hover{border-color:#666;transform:translateY(-3px)}
 .cat-card:focus-visible{outline:2px solid var(--black);outline-offset:3px}
 .cat-card.locked{opacity:0.3;cursor:default;pointer-events:none}
 .cat-card h3{font-size:1.15rem;margin-bottom:var(--space-xs)}
@@ -199,7 +235,7 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
 }
 .strip:active{cursor:grabbing}
 .strip.dragging{
-  z-index:10;box-shadow:0 6px 28px rgba(0,0,0,0.18);
+  z-index:10;box-shadow:0 6px 28px rgba(0,0,0,0.5);
   opacity:0.93;
 }
 .strip canvas{display:block;width:100%}
@@ -221,7 +257,7 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
 /* Drop indicator */
 .drop-indicator{
   width:100%;height:3px;flex-shrink:0;
-  background:linear-gradient(90deg,transparent 0%,rgba(0,0,0,0.22) 20%,rgba(0,0,0,0.22) 80%,transparent 100%);
+  background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.15) 20%,rgba(255,255,255,0.15) 80%,transparent 100%);
   pointer-events:none;
 }
 
@@ -235,7 +271,7 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
 .reference:hover{opacity:1}
 .reference.expanded{
   width:min(320px,70vw);opacity:1;
-  box-shadow:0 8px 32px rgba(0,0,0,0.12);
+  box-shadow:0 8px 32px rgba(0,0,0,0.4);
 }
 
 /* Undo button */
@@ -263,8 +299,7 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
 /* Loading overlay */
 #loading-overlay{
   display:none;position:fixed;inset:0;
-  background:var(--white);z-index:300;
-  align-items:center;justify-content:center;
+  background:var(--white);z-index:300;  align-items:center;justify-content:center;
   flex-direction:column;gap:var(--space-md);
 }
 #loading-overlay.active{display:flex}
@@ -284,7 +319,7 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
 /* Toast */
 #toast{
   position:fixed;bottom:48px;left:50%;transform:translateX(-50%);
-  background:var(--black);color:var(--white);
+  background:#fafaf8;color:#111;
   font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;
   padding:10px 22px;
   opacity:0;pointer-events:none;
@@ -294,7 +329,7 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
 /* Win Overlay */
 #win-overlay{
   display:none;position:fixed;inset:0;
-  background:rgba(250,250,248,0.97);z-index:200;
+  background:rgba(17,17,17,0.97);z-index:200;
   flex-direction:column;align-items:center;justify-content:center;
   padding:var(--space-lg);text-align:center;
   overflow-y:auto;
@@ -302,7 +337,7 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
 #win-overlay.active{display:flex}
 #win-overlay .win-painting{
   max-width:480px;width:90%;margin-bottom:var(--space-lg);
-  box-shadow:0 8px 32px rgba(0,0,0,0.08);
+  box-shadow:0 8px 40px rgba(0,0,0,0.4), 0 0 80px rgba(180,160,120,0.08);
 }
 #win-overlay h2{font-size:1.6rem;font-style:italic;margin-bottom:var(--space-xs)}
 #win-overlay .win-artist{font-size:0.9rem;color:var(--gray)}
@@ -324,7 +359,7 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
 }
 #win-overlay .win-text{
   max-width:460px;font-size:0.85rem;line-height:1.8;
-  color:#555;margin-bottom:var(--space-lg);
+  color:#999;margin-bottom:var(--space-lg);
 }
 </style>
 </head>
@@ -334,6 +369,7 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
   <div class="gallery-wall" id="gallery-wall"></div>
   <h1 id="title-text"></h1>
   <p class="subtitle">Piece together masterworks</p>
+  <div class="hero-puzzle" id="hero-puzzle"></div>
   <button class="btn" onclick="goTo('categories')">Enter Gallery</button>
 </div>
 
@@ -604,6 +640,7 @@ function goTo(id) {
     document.getElementById('hard-hint').classList.remove('visible');
   }
   if (current) {
+    if (current.id === 'landing') cleanupHeroAnimation();
     gsap.to(current, {
       opacity: 0, duration: 0.25, ease: EASE,
       onComplete: () => { current.classList.remove('active'); showScreen(id); }
@@ -639,23 +676,21 @@ function showScreen(id) {
 // ── Landing ──────────────────────────────────────────────────────────────────
 function buildGalleryWall() {
   const wall = document.getElementById('gallery-wall');
-  // Pick 7 paintings for the wall display
-  const picks = [0, 3, 1, 6, 9, 4, 13];
-  // Layout: [left%, top%, width, rotation, hover-shift]
+  wall.innerHTML = '';
+  // Pick 4 paintings for surrounding fragments (organic gallery placement)
+  const picks = [1, 6, 9, 13];
+  // Layout: [left%, top%, width, rotation, hover-shift] — organic, not a grid
   const layout = [
-    ['-4%', '8%',  '28vw', '-6deg', 'translate(3px,-2px)'],
-    ['18%', '62%', '22vw', '3deg',  'translate(-2px,3px)'],
-    ['58%', '5%',  '24vw', '4deg',  'translate(-3px,-1px)'],
-    ['72%', '55%', '26vw', '-3deg', 'translate(2px,2px)'],
-    ['-8%', '40%', '18vw', '8deg',  'translate(4px,0px)'],
-    ['42%', '68%', '20vw', '-5deg', 'translate(-1px,3px)'],
-    ['82%', '25%', '16vw', '7deg',  'translate(-2px,-3px)'],
+    ['3%',  '12%', '16vw', '-3deg', 'translate(2px,-2px) rotate(-3deg)'],
+    ['78%', '8%',  '14vw', '2deg',  'translate(-2px,-1px) rotate(2deg)'],
+    ['5%',  '65%', '13vw', '1.5deg','translate(1px,2px) rotate(1.5deg)'],
+    ['75%', '62%', '15vw', '-2deg', 'translate(-1px,2px) rotate(-2deg)'],
   ];
   picks.forEach((pi, i) => {
     const [left, top, w, rot, hover] = layout[i];
     const frame = document.createElement('div');
     frame.className = 'gallery-frame';
-    frame.style.cssText = `left:${left};top:${top};width:${w};max-width:180px;transform:rotate(${rot});--hover-shift:rotate(${rot}) ${hover};opacity:0;animation:gallery-float ${5 + i * 0.8}s ease-in-out ${i * 0.4}s infinite;`;
+    frame.style.cssText = `left:${left};top:${top};width:${w};max-width:200px;transform:rotate(${rot});--hover-shift:${hover};opacity:0;`;
     const img = document.createElement('img');
     img.src = PAINTINGS[pi].img;
     img.alt = PAINTINGS[pi].title;
@@ -665,18 +700,120 @@ function buildGalleryWall() {
   });
 }
 
+// ── Hero self-assembling puzzle ───────────────────────────────────────────────
+let heroAnimTl = null;
+let heroTimeouts = [];
+
+function buildHeroPuzzle(paintingIndex) {
+  const container = document.getElementById('hero-puzzle');
+  container.innerHTML = '';
+  const p = PAINTINGS[paintingIndex];
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.src = p.img;
+  img.onload = () => {
+    // Split into 6 pieces (2 cols x 3 rows)
+    const cols = 2, rows = 3;
+    const pw = 100 / cols, ph = 100 / rows;
+    const pieces = [];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const piece = document.createElement('div');
+        piece.className = 'hero-piece';
+        // First piece gets the puzzle tooth
+        if (r === 1 && c === 0) piece.classList.add('has-tooth');
+        piece.style.cssText = `left:${c * pw}%;top:${r * ph}%;width:${pw}%;height:${ph}%;`;
+        const im = document.createElement('img');
+        im.src = p.img;
+        im.style.cssText = `position:absolute;left:${-c * 100}%;top:${-r * 100}%;width:${cols * 100}%;height:${rows * 100}%;`;
+        piece.appendChild(im);
+        container.appendChild(piece);
+        pieces.push(piece);
+      }
+    }
+    animateHeroPieces(pieces, paintingIndex);
+  };
+}
+
+function animateHeroPieces(pieces, currentIndex) {
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Scatter positions
+  const scatters = pieces.map(() => ({
+    x: (Math.random() - 0.5) * 200,
+    y: (Math.random() - 0.5) * 160,
+    r: (Math.random() - 0.5) * 40,
+    scale: 0.85 + Math.random() * 0.1
+  }));
+
+  // Set initial scattered state
+  pieces.forEach((p, i) => {
+    gsap.set(p, {
+      x: scatters[i].x, y: scatters[i].y,
+      rotation: scatters[i].r, scale: scatters[i].scale, opacity: 0
+    });
+  });
+
+  // Fade in scattered
+  const tl = gsap.timeline();
+  heroAnimTl = tl;
+  tl.to(pieces, { opacity: 1, duration: 0.6, stagger: 0.08, ease: EASE });
+
+  if (reducedMotion) {
+    // Just snap into place
+    tl.to(pieces, { x: 0, y: 0, rotation: 0, scale: 1, duration: 0.01 }, 0.8);
+    return;
+  }
+
+  // Assemble over ~4s
+  tl.to(pieces, {
+    x: 0, y: 0, rotation: 0, scale: 1,
+    duration: 4, stagger: 0.15, ease: 'power3.inOut'
+  }, 1);
+
+  // Hold 2s, then scatter & repeat with different painting
+  const nextTimeout = setTimeout(() => {
+    // Pick a different random painting
+    let next;
+    do { next = Math.floor(Math.random() * PAINTINGS.length); } while (next === currentIndex);
+    buildHeroPuzzle(next);
+  }, 7500);
+  heroTimeouts.push(nextTimeout);
+}
+
+function cleanupHeroAnimation() {
+  if (heroAnimTl) { heroAnimTl.kill(); heroAnimTl = null; }
+  heroTimeouts.forEach(t => clearTimeout(t));
+  heroTimeouts = [];
+}
+
 function animateLanding() {
   buildGalleryWall();
+  // Start hero puzzle with a random painting
+  const heroIdx = Math.floor(Math.random() * PAINTINGS.length);
+  buildHeroPuzzle(heroIdx);
+
   const el = document.getElementById('title-text');
   el.innerHTML = "Artuzzle".split('').map(c => `<span>${c}</span>`).join('');
   const tl = gsap.timeline();
-  // Frames float in, then title
+  // Gallery fragments fade in
   tl.to('.gallery-frame', {
-    opacity: 0.5, duration: 1, stagger: 0.12, ease: EASE, delay: 0.15
+    opacity: 0.6, duration: 1.2, stagger: 0.15, ease: EASE, delay: 0.1
   })
-    .to('#title-text span', { opacity: 1, duration: 0.5, stagger: 0.07, ease: EASE }, 0.4)
+    .to('#title-text span', { opacity: 1, duration: 0.5, stagger: 0.07, ease: EASE }, 0.3)
     .to('.subtitle', { opacity: 1, duration: 0.6, ease: EASE }, "-=0.2")
     .fromTo('.btn', { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: EASE }, "-=0.3");
+
+  // Mouse parallax for gallery frames
+  if (window.matchMedia('(hover:hover)').matches) {
+    document.getElementById('landing').addEventListener('mousemove', (e) => {
+      const cx = (e.clientX / window.innerWidth - 0.5) * 2;
+      const cy = (e.clientY / window.innerHeight - 0.5) * 2;
+      document.querySelectorAll('.gallery-frame').forEach((f, i) => {
+        const depth = 6 + i * 3;
+        gsap.to(f, { x: cx * depth, y: cy * depth, duration: 1.2, ease: 'power2.out', overwrite: 'auto' });
+      });
+    });
+  }
 }
 
 // ── Levels ───────────────────────────────────────────────────────────────────
