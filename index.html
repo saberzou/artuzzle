@@ -220,35 +220,35 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
 .puzzle-meta{font-size:0.75rem;color:var(--gray);letter-spacing:0.15em}
 .puzzle-container{
   position:relative;max-width:560px;width:100%;margin:0 auto;
-  border:1px solid var(--light);
-  touch-action:none;overflow:hidden;
+  touch-action:none;overflow:visible;
   display:grid;
   grid-template-columns:repeat(var(--cols,2),1fr);
-  gap:2px;
+  gap:8px;
   -webkit-user-select:none;user-select:none;
 }
 .piece{
   position:relative;overflow:hidden;
-  cursor:pointer;user-select:none;-webkit-user-select:none;
+  cursor:grab;user-select:none;-webkit-user-select:none;
   touch-action:none;
-  transition:box-shadow 0.2s var(--ease),transform 0.15s var(--ease),outline 0.15s var(--ease);
   will-change:transform;
   outline:2px solid transparent;
-}
-.piece.selected{
-  outline:2px solid rgba(255,255,255,0.7);
-  box-shadow:0 0 16px rgba(255,255,255,0.15);
-  transform:scale(1.04);
+  border-radius:4px;
+  aspect-ratio:var(--piece-aspect,4/3);
+  transition:box-shadow 0.2s var(--ease),outline 0.15s var(--ease);
 }
 .piece.dragging{
-  z-index:10;box-shadow:0 8px 32px rgba(0,0,0,0.6);
-  opacity:0.9;transform:scale(1.06);
-  pointer-events:none;
+  z-index:100;box-shadow:0 12px 40px rgba(0,0,0,0.5);
+  cursor:grabbing;
+  transition:box-shadow 0.15s var(--ease);
 }
 .piece.drag-over{
   outline:2px solid rgba(255,255,255,0.5);
+  box-shadow:0 0 16px rgba(255,255,255,0.1);
 }
-.piece canvas{display:block;width:100%;height:auto}
+.piece.drag-ghost{
+  opacity:0.25;
+}
+.piece canvas{display:block;width:100%;height:100%;object-fit:cover}
 
 /* Undo button */
 .undo-btn{
@@ -542,10 +542,10 @@ const EASE = "power2.out";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function getStripCount(index) {
-  if (index < 3)  return 4;
-  if (index < 8)  return 6;
-  if (index < 12) return 8;
-  return 10;
+  if (index < 3)  return 6;
+  if (index < 8)  return 8;
+  if (index < 12) return 10;
+  return 12;
 }
 
 function calcStars(movesCount, stripCount) {
@@ -861,11 +861,12 @@ function shuffleArray(arr) {
 
 // ── Build puzzle ──────────────────────────────────────────────────────────────
 function getGridDims(numPieces) {
-  // Return [cols, rows] for the grid
-  if (numPieces <= 4)  return [2, 2];
+  // Return [cols, rows] for the grid — minimum 6 pieces (2x3)
   if (numPieces <= 6)  return [2, 3];
   if (numPieces <= 8)  return [2, 4];
-  return [2, 5];
+  if (numPieces <= 10) return [2, 5];
+  if (numPieces <= 12) return [3, 4];
+  return [3, 5];
 }
 
 function buildPuzzle(img) {
@@ -874,9 +875,13 @@ function buildPuzzle(img) {
   const numPieces = currentStripCount;
   const [cols, rows] = getGridDims(numPieces);
   container.style.setProperty('--cols', cols);
+  // Set aspect ratio so all pieces are identical size
+  const aspectW = img.naturalWidth / cols;
+  const aspectH = img.naturalHeight / rows;
+  container.style.setProperty('--piece-aspect', `${aspectW} / ${aspectH}`);
 
   const w = img.naturalWidth, h = img.naturalHeight;
-  const pieceW = w / cols, pieceH = h / rows;
+  const pieceW = Math.floor(w / cols), pieceH = Math.floor(h / rows);
 
   // Create shuffled order
   const order = shuffleArray(Array.from({ length: numPieces }, (_, i) => i));
@@ -893,13 +898,13 @@ function buildPuzzle(img) {
     piece.dataset.correctIndex = srcIndex;
 
     const canvas = document.createElement('canvas');
-    canvas.width = Math.ceil(pieceW);
-    canvas.height = Math.ceil(pieceH);
+    canvas.width = pieceW;
+    canvas.height = pieceH;
     canvas.getContext('2d').drawImage(
       img,
-      Math.floor(srcCol * pieceW), Math.floor(srcRow * pieceH),
-      Math.ceil(pieceW), Math.ceil(pieceH),
-      0, 0, Math.ceil(pieceW), Math.ceil(pieceH)
+      srcCol * pieceW, srcRow * pieceH,
+      pieceW, pieceH,
+      0, 0, pieceW, pieceH
     );
     piece.appendChild(canvas);
 
@@ -916,15 +921,14 @@ function buildPuzzle(img) {
 
 function setupDragSwap(container) {
   let dragPiece = null;
-  let dragClone = null;
-  let startX, startY, offsetX, offsetY;
+  let offsetX, offsetY;
+  let origLeft, origTop;
   let lastOver = null;
 
   function getPieceFromPoint(x, y) {
-    // Temporarily hide clone to hit-test underneath
-    if (dragClone) dragClone.style.display = 'none';
+    if (dragPiece) dragPiece.style.pointerEvents = 'none';
     const el = document.elementFromPoint(x, y);
-    if (dragClone) dragClone.style.display = '';
+    if (dragPiece) dragPiece.style.pointerEvents = '';
     if (!el) return null;
     return el.closest('.piece');
   }
@@ -936,32 +940,30 @@ function setupDragSwap(container) {
     e.preventDefault();
     dragPiece = piece;
     const rect = piece.getBoundingClientRect();
-    startX = e.clientX; startY = e.clientY;
+    const containerRect = container.getBoundingClientRect();
     offsetX = e.clientX - rect.left;
     offsetY = e.clientY - rect.top;
+    origLeft = rect.left - containerRect.left;
+    origTop = rect.top - containerRect.top;
 
-    // Create visual clone for dragging
-    dragClone = piece.cloneNode(true);
-    dragClone.className = 'piece dragging';
-    dragClone.style.position = 'fixed';
-    dragClone.style.width = rect.width + 'px';
-    dragClone.style.height = rect.height + 'px';
-    dragClone.style.left = (e.clientX - offsetX) + 'px';
-    dragClone.style.top = (e.clientY - offsetY) + 'px';
-    dragClone.style.margin = '0';
-    dragClone.style.transition = 'none';
-    document.body.appendChild(dragClone);
-
-    piece.style.opacity = '0.3';
+    // Pull piece out of grid flow
+    piece.style.position = 'fixed';
+    piece.style.left = rect.left + 'px';
+    piece.style.top = rect.top + 'px';
+    piece.style.width = rect.width + 'px';
+    piece.style.height = rect.height + 'px';
+    piece.style.margin = '0';
+    piece.style.zIndex = '100';
+    piece.classList.add('dragging');
     triggerVibrate();
     container.setPointerCapture(e.pointerId);
   }
 
   function onPointerMove(e) {
-    if (!dragPiece || !dragClone) return;
+    if (!dragPiece) return;
     e.preventDefault();
-    dragClone.style.left = (e.clientX - offsetX) + 'px';
-    dragClone.style.top = (e.clientY - offsetY) + 'px';
+    dragPiece.style.left = (e.clientX - offsetX) + 'px';
+    dragPiece.style.top = (e.clientY - offsetY) + 'px';
 
     const overPiece = getPieceFromPoint(e.clientX, e.clientY);
     if (lastOver && lastOver !== overPiece) lastOver.classList.remove('drag-over');
@@ -973,17 +975,26 @@ function setupDragSwap(container) {
     }
   }
 
+  function resetPieceStyle(piece) {
+    piece.style.position = '';
+    piece.style.left = '';
+    piece.style.top = '';
+    piece.style.width = '';
+    piece.style.height = '';
+    piece.style.margin = '';
+    piece.style.zIndex = '';
+    piece.style.pointerEvents = '';
+    piece.classList.remove('dragging');
+  }
+
   function onPointerUp(e) {
     if (!dragPiece) return;
     const target = getPieceFromPoint(e.clientX, e.clientY);
 
-    // Clean up clone
-    if (dragClone) { dragClone.remove(); dragClone = null; }
     if (lastOver) { lastOver.classList.remove('drag-over'); lastOver = null; }
-    dragPiece.style.opacity = '';
+    resetPieceStyle(dragPiece);
 
     if (target && target !== dragPiece) {
-      // Swap
       moveHistory.push({ type: 'swap', pieceA: dragPiece, pieceB: target });
       document.getElementById('undo-btn').disabled = false;
       swapPiecesInDOM(container, dragPiece, target);
@@ -995,9 +1006,6 @@ function setupDragSwap(container) {
       document.getElementById('move-count').textContent = moves;
       triggerVibrate();
       setTimeout(checkWin, 200);
-    } else {
-      // Snap back
-      gsap.fromTo(dragPiece, { scale: 0.95 }, { scale: 1, duration: 0.2, ease: EASE });
     }
     dragPiece = null;
   }
