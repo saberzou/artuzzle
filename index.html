@@ -954,8 +954,9 @@ function setupDragSwap(container) {
     const rect = piece.getBoundingClientRect();
     // Insert an invisible placeholder to hold the grid slot
     placeholder = document.createElement('div');
-    placeholder.className = 'piece drag-ghost';
+    placeholder.className = 'piece';
     placeholder.style.visibility = 'hidden';
+    placeholder.style.pointerEvents = 'none';
     container.insertBefore(placeholder, piece);
     // Pull the real piece out of flow
     piece.style.position = 'fixed';
