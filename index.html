@@ -1091,6 +1091,7 @@ function playWinBloom(allStrips) {
 }
 
 // ── Win overlay ───────────────────────────────────────────────────────────────
+var winTimeline = null;
 function showWin() {
   const idx    = currentPainting.index;
   const stars  = calcStars(moves, currentStripCount);
@@ -1118,7 +1119,8 @@ function showWin() {
   overlay.classList.add('active');
   overlay.style.opacity = 0;
 
-  const tl = gsap.timeline();
+  if (winTimeline) winTimeline.kill();
+  const tl = winTimeline = gsap.timeline();
   tl.to(overlay,        { opacity: 1, duration: 0.5, ease: EASE })
     .from('.win-painting', { scale: 0.95, opacity: 0, duration: 0.6, ease: EASE }, 0.1)
     .from('#win-title',  { y: 16, opacity: 0, duration: 0.4, ease: EASE }, 0.4)
@@ -1131,6 +1133,7 @@ function showWin() {
 
 function closeWin() {
   const overlay = document.getElementById('win-overlay');
+  if (winTimeline) { winTimeline.kill(); winTimeline = null; }
   overlay.style.pointerEvents = 'none';
   gsap.to(overlay, {
     opacity: 0, duration: 0.25, ease: EASE,
