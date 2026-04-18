@@ -919,22 +919,22 @@ function buildPuzzle(img) {
 }
 
 function setupDragSwap(container) {
-  let dragPiece = null;
+  let dragPiece = null;   // the real piece in the grid (stays in place, dimmed)
+  let dragClone = null;   // visual clone that follows the finger
   let offsetX, offsetY;
-  let origLeft, origTop;
+  let startX, startY;
+  let isDragging = false;
   let lastOver = null;
+  const DRAG_THRESHOLD = 8;
 
   function getPieceFromPoint(x, y) {
-    if (dragPiece) dragPiece.style.pointerEvents = 'none';
+    // Hide clone so elementFromPoint sees the grid pieces underneath
+    if (dragClone) dragClone.style.display = 'none';
     const el = document.elementFromPoint(x, y);
-    if (dragPiece) dragPiece.style.pointerEvents = '';
+    if (dragClone) dragClone.style.display = '';
     if (!el) return null;
     return el.closest('.piece');
   }
-
-  let startX, startY;
-  let isDragging = false;
-  const DRAG_THRESHOLD = 8; // px before we consider it a drag
 
   function onPointerDown(e) {
     if (winTriggered) return;
@@ -944,45 +944,45 @@ function setupDragSwap(container) {
     dragPiece = piece;
     isDragging = false;
     const rect = piece.getBoundingClientRect();
-    const containerRect = container.getBoundingClientRect();
     offsetX = e.clientX - rect.left;
     offsetY = e.clientY - rect.top;
     startX = e.clientX;
     startY = e.clientY;
-    origLeft = rect.left - containerRect.left;
-    origTop = rect.top - containerRect.top;
-
     container.setPointerCapture(e.pointerId);
   }
 
-  function liftPiece(piece) {
+  function createClone(piece) {
     const rect = piece.getBoundingClientRect();
-    piece.style.position = 'fixed';
-    piece.style.left = rect.left + 'px';
-    piece.style.top = rect.top + 'px';
-    piece.style.width = rect.width + 'px';
-    piece.style.height = rect.height + 'px';
-    piece.style.margin = '0';
-    piece.style.zIndex = '100';
-    piece.classList.add('dragging');
-    triggerVibrate();
+    const clone = piece.cloneNode(true);
+    clone.style.position = 'fixed';
+    clone.style.left = rect.left + 'px';
+    clone.style.top = rect.top + 'px';
+    clone.style.width = rect.width + 'px';
+    clone.style.height = rect.height + 'px';
+    clone.style.margin = '0';
+    clone.style.zIndex = '200';
+    clone.style.pointerEvents = 'none';
+    clone.classList.add('dragging');
+    document.body.appendChild(clone);
+    return clone;
   }
 
   function onPointerMove(e) {
     if (!dragPiece) return;
     e.preventDefault();
 
-    // Don't lift piece until drag threshold is exceeded
     if (!isDragging) {
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
       if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
       isDragging = true;
-      liftPiece(dragPiece);
+      dragClone = createClone(dragPiece);
+      dragPiece.classList.add('drag-ghost'); // dim the original in-place
+      triggerVibrate();
     }
 
-    dragPiece.style.left = (e.clientX - offsetX) + 'px';
-    dragPiece.style.top = (e.clientY - offsetY) + 'px';
+    dragClone.style.left = (e.clientX - offsetX) + 'px';
+    dragClone.style.top = (e.clientY - offsetY) + 'px';
 
     const overPiece = getPieceFromPoint(e.clientX, e.clientY);
     if (lastOver && lastOver !== overPiece) lastOver.classList.remove('drag-over');
@@ -994,22 +994,9 @@ function setupDragSwap(container) {
     }
   }
 
-  function resetPieceStyle(piece) {
-    piece.style.position = '';
-    piece.style.left = '';
-    piece.style.top = '';
-    piece.style.width = '';
-    piece.style.height = '';
-    piece.style.margin = '';
-    piece.style.zIndex = '';
-    piece.style.pointerEvents = '';
-    piece.classList.remove('dragging');
-  }
-
   function onPointerUp(e) {
     if (!dragPiece) return;
 
-    // If never started dragging (just a tap), do nothing
     if (!isDragging) {
       dragPiece = null;
       return;
@@ -1018,7 +1005,10 @@ function setupDragSwap(container) {
     const target = getPieceFromPoint(e.clientX, e.clientY);
 
     if (lastOver) { lastOver.classList.remove('drag-over'); lastOver = null; }
-    resetPieceStyle(dragPiece);
+
+    // Remove clone and un-ghost original
+    if (dragClone) { dragClone.remove(); dragClone = null; }
+    dragPiece.classList.remove('drag-ghost');
 
     if (target && target !== dragPiece) {
       moveHistory.push({ type: 'swap', pieceA: dragPiece, pieceB: target });
