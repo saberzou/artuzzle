@@ -232,7 +232,6 @@ h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.2}
   touch-action:none;
   will-change:transform;
   outline:2px solid transparent;
-  border-radius:4px;
   aspect-ratio:var(--piece-aspect,4/3);
   transition:box-shadow 0.2s var(--ease),outline 0.15s var(--ease);
 }
@@ -933,20 +932,31 @@ function setupDragSwap(container) {
     return el.closest('.piece');
   }
 
+  let startX, startY;
+  let isDragging = false;
+  const DRAG_THRESHOLD = 8; // px before we consider it a drag
+
   function onPointerDown(e) {
     if (winTriggered) return;
     const piece = e.target.closest('.piece');
     if (!piece) return;
     e.preventDefault();
     dragPiece = piece;
+    isDragging = false;
     const rect = piece.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
     offsetX = e.clientX - rect.left;
     offsetY = e.clientY - rect.top;
+    startX = e.clientX;
+    startY = e.clientY;
     origLeft = rect.left - containerRect.left;
     origTop = rect.top - containerRect.top;
 
-    // Pull piece out of grid flow
+    container.setPointerCapture(e.pointerId);
+  }
+
+  function liftPiece(piece) {
+    const rect = piece.getBoundingClientRect();
     piece.style.position = 'fixed';
     piece.style.left = rect.left + 'px';
     piece.style.top = rect.top + 'px';
@@ -956,12 +966,21 @@ function setupDragSwap(container) {
     piece.style.zIndex = '100';
     piece.classList.add('dragging');
     triggerVibrate();
-    container.setPointerCapture(e.pointerId);
   }
 
   function onPointerMove(e) {
     if (!dragPiece) return;
     e.preventDefault();
+
+    // Don't lift piece until drag threshold is exceeded
+    if (!isDragging) {
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
+      isDragging = true;
+      liftPiece(dragPiece);
+    }
+
     dragPiece.style.left = (e.clientX - offsetX) + 'px';
     dragPiece.style.top = (e.clientY - offsetY) + 'px';
 
@@ -989,6 +1008,13 @@ function setupDragSwap(container) {
 
   function onPointerUp(e) {
     if (!dragPiece) return;
+
+    // If never started dragging (just a tap), do nothing
+    if (!isDragging) {
+      dragPiece = null;
+      return;
+    }
+
     const target = getPieceFromPoint(e.clientX, e.clientY);
 
     if (lastOver) { lastOver.classList.remove('drag-over'); lastOver = null; }
