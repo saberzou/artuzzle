@@ -958,7 +958,8 @@ function setupDragSwap(container) {
     placeholder.style.visibility = 'hidden';
     placeholder.style.pointerEvents = 'none';
     container.insertBefore(placeholder, piece);
-    // Pull the real piece out of flow
+    // Move piece out of grid entirely and position fixed
+    document.body.appendChild(piece);
     piece.style.position = 'fixed';
     piece.style.left = rect.left + 'px';
     piece.style.top = rect.top + 'px';
