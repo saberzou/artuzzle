@@ -935,6 +935,8 @@ function setupDragSwap(container) {
     return el.closest('.piece');
   }
 
+  let activePointerId = null;
+
   function onPointerDown(e) {
     if (winTriggered) return;
     const piece = e.target.closest('.piece');
@@ -942,12 +944,12 @@ function setupDragSwap(container) {
     e.preventDefault();
     dragPiece = piece;
     isDragging = false;
+    activePointerId = e.pointerId;
     const rect = piece.getBoundingClientRect();
     offsetX = e.clientX - rect.left;
     offsetY = e.clientY - rect.top;
     startX = e.clientX;
     startY = e.clientY;
-    container.setPointerCapture(e.pointerId);
   }
 
   function liftPiece(piece) {
@@ -981,6 +983,10 @@ function setupDragSwap(container) {
       if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
       isDragging = true;
       liftPiece(dragPiece);
+      // Attach move/up to document so events work even when piece is on body
+      document.addEventListener('pointermove', onPointerMove);
+      document.addEventListener('pointerup', onDocPointerUp);
+      document.addEventListener('pointercancel', onPointerCancel);
     }
 
     dragPiece.style.left = (e.clientX - offsetX) + 'px';
@@ -1008,15 +1014,20 @@ function setupDragSwap(container) {
     piece.classList.remove('dragging');
   }
 
-  function onPointerUp(e) {
+  function finishDrag(clientX, clientY, doSwap) {
     if (!dragPiece) return;
+    // Remove document-level listeners
+    document.removeEventListener('pointermove', onPointerMove);
+    document.removeEventListener('pointerup', onDocPointerUp);
+    document.removeEventListener('pointercancel', onPointerCancel);
 
     if (!isDragging) {
       dragPiece = null;
+      activePointerId = null;
       return;
     }
 
-    const target = getPieceFromPoint(e.clientX, e.clientY);
+    const target = doSwap ? getPieceFromPoint(clientX, clientY) : null;
 
     if (lastOver) { lastOver.classList.remove('drag-over'); lastOver = null; }
 
@@ -1042,10 +1053,32 @@ function setupDragSwap(container) {
       setTimeout(checkWin, 200);
     }
     dragPiece = null;
+    activePointerId = null;
+  }
+
+  function onDocPointerUp(e) {
+    if (!dragPiece) return;
+    finishDrag(e.clientX, e.clientY, true);
+  }
+
+  function onPointerCancel(e) {
+    if (!dragPiece) return;
+    finishDrag(0, 0, false);
+  }
+
+  function onPointerUp(e) {
+    if (!dragPiece) return;
+    if (!isDragging) {
+      // tap-to-swap path — no document listeners were attached
+      dragPiece = null;
+      activePointerId = null;
+      return;
+    }
+    // Shouldn't normally reach here (doc listener handles it), but just in case
+    finishDrag(e.clientX, e.clientY, true);
   }
 
   container.addEventListener('pointerdown', onPointerDown);
-  container.addEventListener('pointermove', onPointerMove);
   container.addEventListener('pointerup', onPointerUp);
   container.addEventListener('pointercancel', onPointerUp);
 }
