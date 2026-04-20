@@ -950,6 +950,10 @@ function setupDragSwap(container) {
     offsetY = e.clientY - rect.top;
     startX = e.clientX;
     startY = e.clientY;
+    // Attach to document immediately so we catch movement even if pointer leaves container
+    document.addEventListener('pointermove', onPointerMove);
+    document.addEventListener('pointerup', onDocPointerUp);
+    document.addEventListener('pointercancel', onPointerCancel);
   }
 
   function liftPiece(piece) {
@@ -983,10 +987,6 @@ function setupDragSwap(container) {
       if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
       isDragging = true;
       liftPiece(dragPiece);
-      // Attach move/up to document so events work even when piece is on body
-      document.addEventListener('pointermove', onPointerMove);
-      document.addEventListener('pointerup', onDocPointerUp);
-      document.addEventListener('pointercancel', onPointerCancel);
     }
 
     dragPiece.style.left = (e.clientX - offsetX) + 'px';
@@ -1022,6 +1022,10 @@ function setupDragSwap(container) {
     document.removeEventListener('pointercancel', onPointerCancel);
 
     if (!isDragging) {
+      // Tap (no drag) — clean up document listeners and bail
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerup', onDocPointerUp);
+      document.removeEventListener('pointercancel', onPointerCancel);
       dragPiece = null;
       activePointerId = null;
       return;
@@ -1066,21 +1070,9 @@ function setupDragSwap(container) {
     finishDrag(0, 0, false);
   }
 
-  function onPointerUp(e) {
-    if (!dragPiece) return;
-    if (!isDragging) {
-      // tap-to-swap path — no document listeners were attached
-      dragPiece = null;
-      activePointerId = null;
-      return;
-    }
-    // Shouldn't normally reach here (doc listener handles it), but just in case
-    finishDrag(e.clientX, e.clientY, true);
-  }
+
 
   container.addEventListener('pointerdown', onPointerDown);
-  container.addEventListener('pointerup', onPointerUp);
-  container.addEventListener('pointercancel', onPointerUp);
 }
 
 function swapPiecesInDOM(container, a, b) {
